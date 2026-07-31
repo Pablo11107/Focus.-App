@@ -17,8 +17,8 @@ export const PREMIUM_ENABLED = false;
 // IDs de precio de Stripe (se crean en el dashboard de Stripe,
 // ver PREMIUM-SETUP.md, paso 3). Sustituir por los reales:
 const STRIPE_PRICES = {
-  monthly: "price_REEMPLAZAR_MENSUAL",   // 2,99 €/mes
-  yearly:  "price_REEMPLAZAR_ANUAL"      // 19,99 €/año (−44%)
+  monthly: "price_1TzOH8CCPVnUJQNK1xe0DEzR",   // 2,99 €/mes
+  yearly:  "price_1TzOIHCCPVnUJQNKIcDUAOSM"    // 19,99 €/año (−44%)
 };
 
 // Región de las Cloud Functions de la extensión. DEBE coincidir con la
