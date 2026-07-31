@@ -455,6 +455,7 @@
 
   <script type="module">
     import { requireAuth, loadUserDoc, saveUserDoc, getItems, getUserPosts } from "./firebase-init.js";
+    import { requirePremium, markLockedButtons } from "./premium.js";
     import { mountYouVsYou } from "./you-vs-you.js";
 
     const user = await requireAuth();
@@ -489,9 +490,16 @@
         view.style.display = active ? 'block' : 'none';
       });
     }
+    // Zonas premium: "Yo futuro" y "Mentor". Con PREMIUM_ENABLED=false
+    // en premium.js, requirePremium deja pasar siempre y no hay candados.
+    const PREMIUM_TABS = ['future', 'companion'];
     Object.entries(TABS).forEach(([key, refs]) => {
-      document.getElementById(refs.btn).addEventListener('click', () => switchTab(key));
+      document.getElementById(refs.btn).addEventListener('click', async () => {
+        if (PREMIUM_TABS.includes(key) && !(await requirePremium(uid))) return;
+        switchTab(key);
+      });
     });
+    markLockedButtons(uid, PREMIUM_TABS.map(k => TABS[k].btn));
 
     function escapeHtml(str) {
       const div = document.createElement('div');

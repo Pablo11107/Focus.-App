@@ -12,7 +12,7 @@
   <!-- PWA: soporte "Añadir a pantalla de inicio" en iOS Safari -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Focus">
+  <meta name="apple-mobile-web-app-title" content="Focus.">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
   <link rel="apple-touch-icon" sizes="167x167" href="icon-167.png">
@@ -867,6 +867,9 @@
     <!-- Botón "Profile & account" -->
     <button class="btn action-btn" id="uploadProfileBtn">Profile &amp; account</button>
 
+    <!-- Suscripción: oculto salvo que PREMIUM_ENABLED sea true en premium.js -->
+    <button class="btn action-btn" id="premiumBtn" style="display:none;"></button>
+
     <button class="btn action-btn" id="logoutBtn">Log out</button>
     
     <!-- Icono de configuración (decorativo) -->
@@ -1004,10 +1007,12 @@
 
 <script type="module">
     import { requireAuth, loadUserDoc, saveUserDoc, logout, resizeImageFile } from "./firebase-init.js";
+    import { mountPremiumButton } from "./premium.js";
 
     // Esperamos a saber quién ha iniciado sesión (si no hay nadie, nos manda a login.html)
     const user = await requireAuth();
     const uid = user.uid;
+    mountPremiumButton(document.getElementById("premiumBtn"), uid);
 
     // Cargamos los datos guardados de este usuario en Firestore
     const savedData = await loadUserDoc(uid);
