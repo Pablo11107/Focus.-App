@@ -12,7 +12,7 @@
 // │      "Yo futuro" y "Mentor.", el botón de suscripción  │
 // │      en ajustes, y el checkout de Stripe               │
 // └────────────────────────────────────────────────────────┘
-export const PREMIUM_ENABLED = false;
+export const PREMIUM_ENABLED = true;
 
 // IDs de precio de Stripe (se crean en el dashboard de Stripe,
 // ver PREMIUM-SETUP.md, paso 3). Sustituir por los reales:
