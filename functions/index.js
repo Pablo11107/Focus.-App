@@ -18,13 +18,16 @@
 
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
-const { setGlobalOptions } = require("firebase-functions/v2");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const Stripe = require("stripe");
 
-// Misma región que Firestore (eur3 / Europa).
-setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
+// Opciones comunes a las tres funciones. La región DEBE coincidir con
+// la de Firestore (eur3 / Europa). Se ponen función por función a
+// propósito: importar la raíz de "firebase-functions/v2" arrastra
+// TODOS los módulos de la librería (incluido Realtime Database, que
+// no usamos) y eso rompe el despliegue por dependencias que faltan.
+const COMMON = { region: "europe-west1", maxInstances: 10 };
 
 // Secretos: se guardan cifrados en Secret Manager, nunca en el código.
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
@@ -56,7 +59,7 @@ async function getOrCreateCustomer(stripe, uid, email) {
    Google Pay y Link se muestran solos según el dispositivo).
    ========================================================= */
 exports.createCheckoutSession = onCall(
-  { secrets: [STRIPE_SECRET_KEY] },
+  { ...COMMON, secrets: [STRIPE_SECRET_KEY] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -87,7 +90,7 @@ exports.createCheckoutSession = onCall(
    cancelar, descargar facturas.
    ========================================================= */
 exports.createPortalLink = onCall(
-  { secrets: [STRIPE_SECRET_KEY] },
+  { ...COMMON, secrets: [STRIPE_SECRET_KEY] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -110,7 +113,7 @@ exports.createPortalLink = onCall(
    Es el ÚNICO sitio donde se escribe el estado premium.
    ========================================================= */
 exports.stripeWebhook = onRequest(
-  { secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET], cors: false },
+  { ...COMMON, secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET], cors: false },
   async (req, res) => {
     const stripe = stripeClient(STRIPE_SECRET_KEY.value());
 
