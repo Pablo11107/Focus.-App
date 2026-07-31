@@ -1,0 +1,47 @@
+# ==========================================================
+# Despliega el backend de pagos (carpeta functions/) en Firebase
+# SIN NECESIDAD DE TERMINAL. Se ejecuta de dos formas:
+#
+#   a) Solo cuando cambia algo dentro de functions/
+#   b) A mano: pestaña "Actions" del repositorio en GitHub →
+#      "Deploy Firebase Functions" → botón "Run workflow"
+#
+# Requiere un único secreto en GitHub:
+#   Settings → Secrets and variables → Actions → New repository secret
+#   Nombre: FIREBASE_SERVICE_ACCOUNT
+#   Valor:  el contenido del fichero JSON de la cuenta de servicio
+#           (ver PREMIUM-SETUP.md, paso 6)
+# ==========================================================
+name: Deploy Firebase Functions
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'functions/**'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch:   # permite lanzarlo a mano desde la web
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar dependencias del backend
+        working-directory: functions
+        run: npm install
+
+      - name: Autenticarse en Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Desplegar las funciones
+        run: npx firebase-tools@latest deploy --only functions --project focus-app-2746d --non-interactive --force
