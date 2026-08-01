@@ -115,39 +115,40 @@ function injectStyles() {
   if (stylesInjected) return;
   stylesInjected = true;
   const css = `
-  .wrap-overlay{position:fixed;inset:0;z-index:1150;background:#07070E;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s ease;}
+  .wrap-overlay{position:fixed;inset:0;z-index:1150;background:#07070E;display:flex;align-items:flex-start;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s ease;}
   .wrap-overlay.open{opacity:1;pointer-events:auto;}
-  .wrap-stage{position:relative;width:100%;height:100%;max-width:480px;margin:0 auto;overflow:hidden;background:linear-gradient(180deg,#191824 0%,#07070E 70%);color:#fff;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+  .wrap-stage{position:relative;width:100%;height:100%;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden;background:linear-gradient(180deg,#191824 0%,#07070E 70%);color:#fff;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
   .wrap-bars{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;right:12px;display:flex;gap:5px;z-index:5;}
   .wrap-bar{flex:1;height:3px;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden;}
   .wrap-bar i{display:block;height:100%;width:0%;background:#D4AF6D;border-radius:99px;}
-  .wrap-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 24px);right:14px;z-index:6;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.85);width:34px;height:34px;border-radius:50%;font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-  .wrap-slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:4.2rem 1.8rem 3.2rem;opacity:0;transform:translateY(12px) scale(.985);transition:opacity .45s ease,transform .45s cubic-bezier(.22,1,.36,1);pointer-events:none;}
+  .wrap-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 24px);right:14px;z-index:6;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.85);width:38px;height:38px;border-radius:50%;font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .wrap-slide{position:absolute;inset:0;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;opacity:0;transform:translateY(12px) scale(.985);transition:opacity .45s ease,transform .45s cubic-bezier(.22,1,.36,1);pointer-events:none;}
+  .wrap-inner{margin:auto;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;text-align:center;padding:calc(env(safe-area-inset-top,0px) + 3.4rem) 1.3rem calc(env(safe-area-inset-bottom,0px) + 3rem);}
   .wrap-slide.on{opacity:1;transform:none;pointer-events:auto;}
   .wrap-eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:#D4AF6D;font-weight:600;margin-bottom:.9rem;}
-  .wrap-big{font-size:clamp(2.6rem,14vw,4.4rem);font-weight:800;line-height:1;letter-spacing:-.02em;}
+  .wrap-big{font-size:clamp(2.3rem,13vw,3.8rem);font-weight:800;line-height:1;letter-spacing:-.02em;}
   .wrap-big small{font-size:.35em;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:0;}
-  .wrap-title{font-size:1.5rem;font-weight:700;line-height:1.25;margin:.4rem 0;}
-  .wrap-text{font-size:.95rem;line-height:1.6;color:rgba(255,255,255,.78);max-width:32ch;margin:0 auto;}
+  .wrap-title{font-size:clamp(1.15rem,5vw,1.5rem);font-weight:700;line-height:1.25;margin:.4rem 0;}
+  .wrap-text{font-size:clamp(.84rem,3.8vw,.95rem);line-height:1.6;color:rgba(255,255,255,.78);max-width:32ch;margin:0 auto;}
   .wrap-text strong{color:#D4AF6D;font-weight:700;}
   .wrap-quote{font-size:1.15rem;line-height:1.55;font-style:italic;color:#fff;max-width:30ch;}
   .wrap-delta{display:inline-flex;align-items:center;gap:.35rem;margin-top:1rem;padding:.35rem .8rem;border-radius:99px;font-size:.85rem;font-weight:700;background:rgba(212,175,109,.14);color:#D4AF6D;}
   .wrap-delta.down{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65);}
-  .wrap-daystrip{display:flex;gap:6px;margin-top:1.4rem;}
-  .wrap-day{width:38px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:.62rem;color:rgba(255,255,255,.5);}
-  .wrap-day .dot{width:38px;height:48px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  .wrap-daystrip{display:flex;gap:min(1.6vw,6px);margin-top:1.4rem;max-width:100%;}
+  .wrap-day{width:min(11.5vw,38px);display:flex;flex-direction:column;align-items:center;gap:5px;font-size:.62rem;color:rgba(255,255,255,.5);}
+  .wrap-day .dot{width:100%;aspect-ratio:38/48;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);overflow:hidden;display:flex;align-items:center;justify-content:center;}
   .wrap-day.active .dot{border-color:#D4AF6D;box-shadow:0 0 12px rgba(212,175,109,.25);}
   .wrap-day.active .dot::after{content:"";width:8px;height:8px;border-radius:50%;background:#D4AF6D;}
   .wrap-day .dot img{width:100%;height:100%;object-fit:cover;}
   .wrap-day.active .dot:has(img)::after{display:none;}
-  .wrap-meter{width:min(78vw,300px);height:10px;border-radius:99px;background:rgba(255,255,255,.1);margin-top:1.4rem;overflow:hidden;}
+  .wrap-meter{width:min(82vw,300px);max-width:100%;height:10px;border-radius:99px;background:rgba(255,255,255,.1);margin-top:1.4rem;overflow:hidden;}
   .wrap-meter i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#8f7742,#D4AF6D);border-radius:99px;transition:width 1.2s cubic-bezier(.22,1,.36,1);}
   .wrap-meter-cap{font-size:.72rem;color:rgba(255,255,255,.5);margin-top:.5rem;}
   .wrap-votes{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:1.3rem;max-width:280px;}
   .wrap-vote{width:14px;height:14px;border-radius:4px;background:#D4AF6D;opacity:0;transform:scale(.4);animation:wrapVote .4s forwards;}
   @keyframes wrapVote{to{opacity:1;transform:scale(1) rotate(45deg);}}
   .wrap-verdict{font-size:3.2rem;line-height:1;margin-bottom:.6rem;}
-  .wrap-pacts{display:flex;flex-direction:column;gap:.7rem;margin-top:1.3rem;width:min(82vw,320px);}
+  .wrap-pacts{display:flex;flex-direction:column;gap:.6rem;margin-top:1.1rem;width:min(88vw,320px);}
   .wrap-pact-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:.9rem 1rem;color:#fff;font-size:.92rem;font-weight:600;cursor:pointer;text-align:left;transition:border-color .2s,background .2s;font-family:inherit;}
   .wrap-pact-btn:hover{border-color:#D4AF6D;}
   .wrap-pact-btn.picked{border-color:#D4AF6D;background:rgba(212,175,109,.14);}
@@ -157,7 +158,7 @@ function injectStyles() {
   .wrap-cta:disabled{opacity:.4;cursor:not-allowed;}
   .wrap-cta.ghost{background:rgba(255,255,255,.08);color:#fff;margin-top:.7rem;}
   .wrap-share-status{font-size:.8rem;color:rgba(255,255,255,.55);margin-top:.7rem;min-height:1.1em;}
-  .wrap-card-preview{width:min(62vw,230px);border-radius:14px;margin-top:1.2rem;box-shadow:0 18px 44px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.1);}
+  .wrap-card-preview{width:auto;max-width:min(64vw,230px);max-height:38dvh;max-height:38vh;border-radius:14px;margin-top:1.2rem;box-shadow:0 18px 44px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.1);}
   .wrap-study-source{font-size:.8rem;font-weight:700;color:rgba(255,255,255,.85);margin-bottom:.8rem;max-width:34ch;line-height:1.4;}
   .wrap-study-applied{margin-top:1.2rem;background:rgba(212,175,109,.1);border:1px solid rgba(212,175,109,.3);border-radius:14px;padding:.9rem 1rem;font-size:.88rem;line-height:1.55;color:#fff;max-width:34ch;text-align:left;}
   .wrap-study-applied span{display:block;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:#D4AF6D;font-weight:700;margin-bottom:.35rem;}
@@ -502,7 +503,7 @@ async function runWrap(ctx, wrappedWeekKey) {
     <div class="wrap-stage">
       <div class="wrap-bars">${slides.map(() => `<div class="wrap-bar"><i></i></div>`).join("")}</div>
       <button class="wrap-close" aria-label="Cerrar">&#10005;</button>
-      ${slides.map((s, i) => `<div class="wrap-slide" data-i="${i}">${s.html}</div>`).join("")}
+      ${slides.map((s, i) => `<div class="wrap-slide" data-i="${i}"><div class="wrap-inner">${s.html}</div></div>`).join("")}
       <div class="wrap-tap-hint">Toca para avanzar · mantén pulsado para pausar</div>
     </div>`;
   document.body.appendChild(overlay);
@@ -586,8 +587,23 @@ async function runWrap(ctx, wrappedWeekKey) {
   // Navegación: tap izquierda/derecha, mantener para pausar
   const stage = overlay.querySelector(".wrap-stage");
   let holdTimer = null, holding = false, pauseStamp = 0;
-  function pointerDown() {
+  let startX = 0, startY = 0, moved = false;
+  function pt(e) {
+    const t = e.changedTouches ? e.changedTouches[0] : e;
+    return { x: t.clientX, y: t.clientY };
+  }
+  function pointerDown(e) {
+    const p0 = pt(e);
+    startX = p0.x; startY = p0.y; moved = false;
     holdTimer = setTimeout(() => { holding = true; paused = true; pauseStamp = performance.now(); }, 220);
+  }
+  function pointerMove(e) {
+    const p1 = pt(e);
+    if (Math.hypot(p1.x - startX, p1.y - startY) > 12) {
+      moved = true;               // es scroll/arrastre, no un tap
+      clearTimeout(holdTimer);    // y tampoco un "mantener pulsado"
+      if (holding) { holding = false; paused = false; elapsedPaused += performance.now() - pauseStamp; }
+    }
   }
   function pointerUp(e) {
     clearTimeout(holdTimer);
@@ -596,14 +612,17 @@ async function runWrap(ctx, wrappedWeekKey) {
       elapsedPaused += performance.now() - pauseStamp;
       return;
     }
+    if (moved) return; // scroll dentro del slide: no navegar
     // Tap (ignorar si fue sobre un botón/enlace del slide)
     if (e.target.closest("button, a, input, textarea")) return;
-    const x = (e.changedTouches ? e.changedTouches[0].clientX : e.clientX) - stage.getBoundingClientRect().left;
+    const x = pt(e).x - stage.getBoundingClientRect().left;
     if (x < stage.clientWidth * 0.32) api.prev(); else api.next();
   }
   stage.addEventListener("mousedown", pointerDown);
+  stage.addEventListener("mousemove", pointerMove);
   stage.addEventListener("mouseup", pointerUp);
   stage.addEventListener("touchstart", pointerDown, { passive: true });
+  stage.addEventListener("touchmove", pointerMove, { passive: true });
   stage.addEventListener("touchend", pointerUp);
   overlay.querySelector(".wrap-close").addEventListener("click", api.close);
 
