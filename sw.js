@@ -7,7 +7,7 @@
 //
 // Sube este número cada vez que cambies archivos estáticos para forzar
 // que los usuarios reciban la versión nueva.
-const CACHE_VERSION = "focus-v2";
+const CACHE_VERSION = "focus-v3";
 
 const APP_SHELL = [
   "index.html",
@@ -22,6 +22,8 @@ const APP_SHELL = [
   "firebase-init.js",
   "splash.js",
   "true-focus.js",
+  "weekly-wrap.js",
+  "study-library.js",
   "you-vs-you.js",
   "you-vs-you.css",
   "manifest.json",

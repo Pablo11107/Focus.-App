@@ -455,6 +455,8 @@
 
   <script type="module">
     import { requireAuth, loadUserDoc, saveUserDoc, getItems, getUserPosts } from "./firebase-init.js";
+    import { getWeeklyStudy } from "./study-library.js";
+    import { getWeekKey } from "./weekly-wrap.js";
     import { requirePremium, markLockedButtons } from "./premium.js";
     import { mountYouVsYou } from "./you-vs-you.js";
 
@@ -745,103 +747,49 @@
     // datos. La rotación es determinista (anclada al lunes), así
     // que cambia sola cada semana sin necesidad de servidor.
     // =======================================================
-    const STUDY_LIBRARY = [
-      {
-        source: "Gail Matthews · Dominican University of California",
-        claim: "Las personas que escriben sus objetivos tienen una probabilidad significativamente mayor de cumplirlos que quienes solo los piensan, y más aún si revisan su progreso con regularidad.",
-        apply: (s) => s.hasReason
-          ? "Tú ya tienes tu porqué escrito ahí arriba — cada vez que entras aquí y lo relees, estás haciendo exactamente lo que este estudio recomienda."
-          : "Todavía no has escrito tu porqué ahí arriba. Según este estudio, hacerlo ahora mismo es de las inversiones de un minuto más rentables que existen."
-      },
-      {
-        source: "Phillippa Lally et al. · UCL, 2010",
-        claim: "Formar un hábito hasta que sea automático tarda de media 66 días — y saltarse un día aislado no daña el proceso; lo que importa es la tendencia, no la perfección.",
-        apply: (s) => s.daysSinceStart >= 66
-          ? `Llevas ${s.daysSinceStart} días en FOCUS: ya has cruzado la media de los 66 días. Lo que al principio costaba, tu cerebro lo está automatizando.`
-          : `Llevas ${s.daysSinceStart} de esos 66 días de media. Cada registro de esta semana acerca tus hábitos al punto en que dejan de costar esfuerzo.`
-      },
-      {
-        source: "Teresa Amabile y Steven Kramer · Harvard Business School",
-        claim: "El \"principio del progreso\": de todos los factores que sostienen la motivación, el más potente es ver avance en algo que te importa — aunque el avance sea pequeño.",
-        apply: (s) => `Tus ${s.activeDays} día${s.activeDays === 1 ? '' : 's'} activo${s.activeDays === 1 ? '' : 's'} son exactamente eso: progreso visible. Esta página existe para que lo veas — y al verlo, según Amabile, se retroalimenta.`
-      },
-      {
-        source: "Bogdan Draganski et al. · Nature, 2004",
-        claim: "Aprender una habilidad nueva produce cambios físicos medibles en la materia gris del cerebro en cuestión de semanas. La práctica no solo mejora lo que haces: cambia lo que eres.",
-        apply: (s) => s.hours >= 1
-          ? `Tus ${s.hours.toFixed(1)} horas acumuladas no son solo un número: a escala neuronal, son remodelación física. Tu cerebro de hoy no es el del día que empezaste.`
-          : "Tu primera hora registrada ya empezará ese proceso: la remodelación comienza antes de lo que crees."
-      },
-      {
-        source: "Kirk Erickson et al. · PNAS, 2011",
-        claim: "Un año de ejercicio aeróbico regular aumentó el tamaño del hipocampo en adultos, revirtiendo en la práctica uno o dos años de envejecimiento cerebral.",
-        apply: (s) => `Cada sesión de entrenamiento que registras trabaja en esa dirección. Y el efecto no exige heroicidades: el estudio usó caminatas regulares, no maratones.`
-      },
-      {
-        source: "Robert Wilson et al. · Rush Memory and Aging Project",
-        claim: "Quienes mantienen más actividad mental a lo largo de la vida (lectura, estudio) acumulan \"reserva cognitiva\" y muestran un deterioro de memoria notablemente más lento.",
-        apply: (s) => `Tus minutos de lectura y estudio son depósitos en esa reserva. No se nota hoy — se nota en décadas, y solo se puede construir así: sesión a sesión.`
-      },
-      {
-        source: "Sara Lazar et al. · Harvard / MGH",
-        claim: "La práctica regular de meditación se asocia con mayor densidad de materia gris en regiones ligadas a la atención, la memoria y la regulación emocional.",
-        apply: (s) => `Cada sesión de meditación que registras entrena literalmente el músculo con el que luego haces todo lo demás: atención. Es el hábito que multiplica a los otros.`
-      },
-      {
-        source: "Björn Rasch y Jan Born · Physiological Reviews, 2013",
-        claim: "El sueño no es tiempo perdido: durante el sueño profundo el cerebro consolida lo aprendido durante el día, transfiriéndolo a la memoria de largo plazo.",
-        apply: (s) => `Trackear tu sueño en FOCUS no es un extra decorativo: cada noche completa multiplica el valor de las horas de estudio y trabajo que registras de día.`
-      },
-      {
-        source: "Anders Ericsson · Florida State University",
-        claim: "La maestría no llega por talento ni por horas sueltas, sino por \"práctica deliberada\": sesiones enfocadas, regulares, con objetivo claro — exactamente lo que registras aquí.",
-        apply: (s) => s.totalSessions > 0
-          ? `Tus ${s.totalSessions} sesiones son unidades de práctica deliberada. Ericsson demostró que es la cantidad y calidad de estas, no el talento inicial, lo que separa a los expertos.`
-          : "Tu primera sesión registrada será tu primera unidad de práctica deliberada — la moneda con la que, según Ericsson, se compra la maestría."
-      },
-      {
-        source: "Hengchen Dai, Katherine Milkman y Jason Riis · Wharton, 2014",
-        claim: "El \"efecto borrón y cuenta nueva\": los inicios naturales (un lunes, un mes nuevo, un cumpleaños) disparan la motivación porque separan mentalmente al \"yo de antes\" del actual.",
-        apply: (s) => `Este estudio rota cada lunes a propósito: cada semana es uno de esos inicios naturales. Si la anterior no salió como querías, hoy el marcador está a cero — úsalo.`
-      },
-      {
-        source: "Wendy Wood, Jeffrey Quinn y Deborah Kashy · 2002",
-        claim: "Alrededor del 43% de lo que hacemos cada día no son decisiones: son hábitos disparados por el contexto. Quien diseña sus hábitos, diseña casi la mitad de su vida en piloto automático.",
-        apply: (s) => `Cada categoría que registras en FOCUS es un intento de poner ese 43% a trabajar a tu favor. Con ${s.consistencyPct}% de días activos, ese piloto automático ya se está escribiendo.`
-      },
-      {
-        source: "Karl Weick · American Psychologist, 1984",
-        claim: "Las \"pequeñas victorias\": los objetivos grandes paralizan, pero una serie de logros pequeños y concretos genera la sensación de control que hace posible lo grande.",
-        apply: (s) => `Por eso FOCUS mide sesiones y no promesas. ${s.totalSessions > 0 ? `Tus ${s.totalSessions} sesiones son ${s.totalSessions} pequeñas victorias encadenadas` : 'Tu primera sesión será tu primera pequeña victoria'} — y Weick demostró que así es como se construye lo imposible.`
-      }
-    ];
-
-    function weeklyStudy() {
-      // Semanas ancladas al lunes (1 ene 2024 fue lunes).
-      const MS_WEEK = 7 * 24 * 60 * 60 * 1000;
-      const anchor = Date.UTC(2024, 0, 1);
-      const weekIndex = Math.floor((Date.now() - anchor) / MS_WEEK);
-      const study = STUDY_LIBRARY[((weekIndex % STUDY_LIBRARY.length) + STUDY_LIBRARY.length) % STUDY_LIBRARY.length];
-      // Días hasta el próximo lunes (para el pie de la tarjeta)
+    // La biblioteca de estudios vive ahora en study-library.js
+    // (56 estudios, compartida con el Weekly Wrap para que ambas
+    // superficies muestren el mismo estudio la misma semana).
+    function daysToNextMonday() {
       const now = new Date();
-      const daysToMonday = ((8 - now.getDay()) % 7) || 7;
-      return { study, daysToMonday };
+      return ((8 - now.getDay()) % 7) || 7;
     }
 
     function studyOfWeekHtml() {
-      const { study, daysToMonday } = weeklyStudy();
+      // Mismo estudio que el Weekly Wrap: rotación compartida
+      // anclada al lunes, sobre la biblioteca de 56 estudios.
+      const { study, index, total } = getWeeklyStudy(getWeekKey());
+      const daysToMonday = daysToNextMonday();
+
+      // Stats de la semana en curso desde el weekLog (con
+      // fallback amable si la semana aún no tiene registros).
+      const wk = (savedData.weekLog || {})[getWeekKey()] || {};
+      const wkMins = wk.mins || {};
+      const wkSess = wk.sess || {};
+      const wkYes  = wk.yes  || {};
+      const weekMin = Object.values(wkMins).reduce((a, b) => a + (Number(b) || 0), 0);
+      const weekSess = Object.values(wkSess).reduce((a, b) => a + (Number(b) || 0), 0)
+                     + (Number(wkYes.prayed) || 0) + (Number(wkYes.diet) || 0);
+      const weekActiveDays = Object.keys(wk.days || {}).length;
+      const LABELS = { read: "Lectura", trained: "Entrenamiento", meditated: "Meditación", worked: "Trabajo", studied: "Estudio", slept: "Sueño" };
+      const customCats = savedData.customCats || [];
+      let domKey = null, domMin = 0;
+      Object.entries(wkMins).forEach(([k, v]) => { if ((Number(v) || 0) > domMin) { domMin = Number(v); domKey = k; } });
+      const domLabel = domKey
+        ? (LABELS[domKey] || (customCats.find(c => c.key === domKey) || {}).label || null)
+        : null;
+
       const stats = {
-        activeDays: dateSet.size,
-        daysSinceStart,
-        totalMinutes,
-        totalSessions,
-        hours: totalMinutes / 60,
-        consistencyPct: Math.min(100, Math.round((dateSet.size / Math.max(daysSinceStart, 1)) * 100)),
-        hasReason: !!(profileInfo.reason && profileInfo.reason.trim())
+        weekMin: Math.round(weekMin),
+        weekSess,
+        activeDays: weekActiveDays,
+        lifetimeH: totalMinutes / 60,
+        hasReason: !!(profileInfo.reason && profileInfo.reason.trim()),
+        domLabel
       };
       return `
         <div class="road-block study-block">
-          <div class="road-eyebrow">El estudio de esta semana</div>
+          <div class="road-eyebrow">El estudio de esta semana &middot; ${index + 1}/${total}</div>
           <div class="study-source">${study.source}</div>
           <p class="road-text">${study.claim}</p>
           <p class="road-text study-applied"><strong>Aplicado a ti:</strong> ${study.apply(stats)}</p>
