@@ -738,6 +738,116 @@
     .icon-choice:hover svg { color: #D4AF6D; }
     .icon-choice.selected { box-shadow: inset 0 0 0 1.5px #D4AF6D, 0 0 14px -5px rgba(212,175,109,0.6); }
     .icon-choice.selected svg { color: #D4AF6D; }
+
+    /* ============================
+       Gate del PORQUÉ (onboarding)
+       Obligatorio la primera vez: no se puede cerrar ni saltar.
+       ============================ */
+    .why-gate-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0,0,0,0.82);
+      backdrop-filter: blur(6px);
+      z-index: 1200; /* por encima de cualquier otro modal */
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      padding: 1rem;
+    }
+    .why-gate-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .why-gate {
+      background: linear-gradient(180deg, #2F2E37, #100F19);
+      padding: 2.2rem 1.9rem 1.9rem;
+      border-radius: 20px;
+      width: 360px;
+      max-width: 92vw;
+      max-height: 88vh;
+      max-height: 88dvh;
+      overflow-y: auto;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08);
+      transform: scale(0.9) translateY(8px);
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .why-gate-overlay.open .why-gate {
+      transform: scale(1) translateY(0);
+    }
+    .why-gate-eyebrow {
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #D4AF6D;
+      font-weight: 600;
+    }
+    .why-gate h3 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+    .why-gate p.why-gate-sub {
+      margin: 0;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: rgba(255,255,255,0.72);
+    }
+    .why-gate textarea {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 110px;
+      resize: vertical;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      padding: 0.8rem 0.9rem;
+      color: #fff;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .why-gate textarea:focus { border-color: #D4AF6D; }
+    .why-gate-hint {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.45);
+      display: flex;
+      justify-content: space-between;
+      gap: 0.6rem;
+    }
+    .why-gate-save {
+      margin-top: 0.3rem;
+      background: #D4AF6D;
+      color: #100F19;
+      border: none;
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s ease, transform 0.15s ease;
+    }
+    .why-gate-save:hover:not(:disabled) { transform: translateY(-1px); }
+    .why-gate-save:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .why-gate-footnote {
+      font-size: 0.72rem;
+      line-height: 1.45;
+      color: rgba(255,255,255,0.4);
+      margin: 0;
+    }
 </style>
 </head>
 <body>
@@ -1049,8 +1159,63 @@
       realName: "",
       userName: "",
       description: "",
-      profilePic: ""
+      profilePic: "",
+      reason: ""
     };
+
+    // =======================================================
+    // GATE DEL PORQUÉ — obligatorio en la primera entrada.
+    // Si el usuario todavía no tiene escrito su porqué
+    // (profileInfo.reason vacío), bloqueamos la app hasta que
+    // lo escriba. Se guarda en el mismo campo que usa Legacy.
+    // =======================================================
+    (function whyGate() {
+      const hasReason = !!(profileInfo.reason && profileInfo.reason.trim());
+      if (hasReason) return;
+
+      const overlay = document.getElementById("whyGateOverlay");
+      const input   = document.getElementById("whyGateInput");
+      const counter = document.getElementById("whyGateCounter");
+      const saveBtn = document.getElementById("whyGateSaveBtn");
+      const MIN_LEN = 10;
+
+      overlay.classList.add("open");
+      document.body.style.overflow = "hidden"; // sin scroll de fondo mientras el gate está activo
+      setTimeout(() => input.focus(), 350);
+
+      input.addEventListener("input", () => {
+        const len = input.value.trim().length;
+        counter.textContent = `${input.value.length}/500`;
+        saveBtn.disabled = len < MIN_LEN;
+      });
+
+      // Blindaje: el gate no se cierra con Escape ni tocando el fondo.
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) input.focus(); });
+      document.addEventListener("keydown", function escBlock(e) {
+        if (e.key === "Escape" && overlay.classList.contains("open")) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
+
+      saveBtn.addEventListener("click", async () => {
+        const val = input.value.trim();
+        if (val.length < MIN_LEN) return;
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Guardando...";
+        try {
+          profileInfo = { ...profileInfo, reason: val };
+          await saveUserDoc(uid, { profileInfo });
+          overlay.classList.remove("open");
+          document.body.style.overflow = "";
+        } catch (err) {
+          console.error("No se pudo guardar el porqué:", err);
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Guardar mi porqué y empezar";
+          alert("No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.");
+        }
+      });
+    })();
 
     document.getElementById("logoutBtn").addEventListener("click", logout);
 
@@ -1669,6 +1834,36 @@
     });
   </script>
   <script type="module" src="dock-nav.js"></script>
+
+  <!-- ============================
+       GATE DEL PORQUÉ (onboarding obligatorio)
+       Se muestra la primera vez que el usuario entra a FOCUS
+       (cuando profileInfo.reason está vacío). No tiene botón de
+       cerrar: escribir el porqué es requisito para continuar.
+       El texto se guarda en profileInfo.reason, el mismo campo
+       que lee legacy.html en ¿Por qué?/Orígenes, Yo futuro y Mentor.
+       ============================ -->
+  <div class="why-gate-overlay" id="whyGateOverlay" aria-modal="true" role="dialog" aria-labelledby="whyGateTitle">
+    <div class="why-gate">
+      <div class="why-gate-eyebrow">Antes de empezar</div>
+      <h3 id="whyGateTitle">¿Por qué empiezas esto?</h3>
+      <p class="why-gate-sub">
+        Todo lo que construyas en FOCUS —tus rachas, tus horas, tu historia— nacerá de esta respuesta.
+        Escríbela con honestidad: volverás a leerla los días en los que quieras rendirte.
+      </p>
+      <textarea id="whyGateInput" placeholder="Empiezo FOCUS porque..." maxlength="500"></textarea>
+      <div class="why-gate-hint">
+        <span>Mínimo 10 caracteres</span>
+        <span id="whyGateCounter">0/500</span>
+      </div>
+      <button class="why-gate-save" id="whyGateSaveBtn" disabled>Guardar mi porqué y empezar</button>
+      <p class="why-gate-footnote">
+        Un estudio de la Dra. Gail Matthews (Dominican University of California) descubrió que quienes
+        escriben su objetivo tienen muchas más probabilidades de cumplirlo. Podrás editarlo cuando quieras
+        desde Legacy &rarr; ¿Por qué?/Orígenes.
+      </p>
+    </div>
+  </div>
 
   <!-- PWA: registro del Service Worker (cache de assets estáticos) -->
   <script>
