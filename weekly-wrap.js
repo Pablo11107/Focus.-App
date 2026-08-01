@@ -206,10 +206,10 @@ function drawShareCard(stats, weekKey, ctx2) {
   // Número grande: minutos
   c.fillStyle = "#fff";
   c.font = "800 190px system-ui, sans-serif";
-  c.fillText(fmtMin(stats.totalMin), W / 2, 450);
+  c.fillText(fmtMin(stats.totalMin), W / 2, 480);
   c.fillStyle = "rgba(255,255,255,.6)";
   c.font = "400 34px system-ui, sans-serif";
-  c.fillText("invertidos en mí", W / 2, 510);
+  c.fillText("invertidos en mí", W / 2, 545);
 
   // Tres stats
   const cols = [
@@ -221,36 +221,19 @@ function drawShareCard(stats, weekKey, ctx2) {
     const x = W / 2 + (i - 1) * 300;
     c.fillStyle = gold;
     c.font = "700 52px system-ui, sans-serif";
-    c.fillText(col[0], x, 680);
+    c.fillText(col[0], x, 730);
     c.fillStyle = "rgba(255,255,255,.55)";
     c.font = "400 26px system-ui, sans-serif";
-    c.fillText(col[1], x, 725);
+    c.fillText(col[1], x, 778);
   });
 
-  // El porqué
-  const reason = (ctx2.profileInfo && ctx2.profileInfo.reason || "").trim();
-  if (reason) {
-    c.fillStyle = "rgba(255,255,255,.85)";
-    c.font = "italic 400 38px Georgia, serif";
-    const words = reason.split(/\s+/);
-    const lines = [];
-    let line = "";
-    words.forEach(w => {
-      const test = line ? line + " " + w : w;
-      if (c.measureText("\u201C" + test + "\u201D").width > W - 260) { lines.push(line); line = w; }
-      else line = test;
-    });
-    if (line) lines.push(line);
-    const shown = lines.slice(0, 4);
-    if (lines.length > 4) shown[3] = shown[3].replace(/\s+\S*$/, "") + "…";
-    shown.forEach((l, i) => {
-      const txt = (i === 0 ? "\u201C" : "") + l + (i === shown.length - 1 ? "\u201D" : "");
-      c.fillText(txt, W / 2, 880 + i * 54);
-    });
-    c.fillStyle = "rgba(255,255,255,.4)";
-    c.font = "400 26px system-ui, sans-serif";
-    c.fillText("— por qué empecé", W / 2, 880 + shown.length * 54 + 30);
-  }
+  // Nota: el porqué del usuario NO se incluye en la carta —
+  // es demasiado personal para una imagen pensada para compartir.
+  // En su lugar, una frase de identidad neutra.
+  c.fillStyle = "rgba(255,255,255,.85)";
+  c.font = "italic 400 40px Georgia, serif";
+  c.fillText("Cada sesi\u00f3n, un voto por", W / 2, 960);
+  c.fillText("quien quiero ser.", W / 2, 1016);
 
   c.fillStyle = gold;
   c.font = "700 44px system-ui, sans-serif";
@@ -437,28 +420,40 @@ async function runWrap(ctx, wrappedWeekKey) {
   const currentWeek = getWeekKey();
   if (stats) {
     const opts = pactOptions(stats);
+    // ¿Ya hay un pacto sellado para la semana en curso? (p. ej. el
+    // usuario reabre el wrap con el botón "Tu semana")
+    const sealed = (ctx.wrapMeta.pact && ctx.wrapMeta.pact.weekKey === currentWeek) ? ctx.wrapMeta.pact : null;
+    const sealedIdx = sealed ? opts.findIndex(o => o.type === sealed.type) : -1;
     slides.push({ dur: 0, interactive: true, mustComplete: true, html: `
-      <div class="wrap-eyebrow">El pacto &middot; obligatorio</div>
-      <div class="wrap-title">&iquest;C&oacute;mo quieres que sea<br>la pr&oacute;xima semana?</div>
-      <p class="wrap-text" style="margin-top:.3rem;font-size:.82rem;">En FOCUS no se sale de la semana sin un compromiso. El lunes que viene, tus datos dar&aacute;n el veredicto.</p>
+      <div class="wrap-eyebrow">El pacto${sealed ? " &middot; sellado" : " &middot; obligatorio"}</div>
+      <div class="wrap-title">${sealed ? "Tu pacto de esta semana" : "&iquest;C&oacute;mo quieres que sea<br>la pr&oacute;xima semana?"}</div>
+      <p class="wrap-text" style="margin-top:.3rem;font-size:.82rem;">${sealed
+        ? "Ya est&aacute; en marcha. Puedes mantenerlo o cambiarlo por otro — el lunes, tus datos dar&aacute;n el veredicto."
+        : "En FOCUS no se sale de la semana sin un compromiso. El lunes que viene, tus datos dar&aacute;n el veredicto."}</p>
       <div class="wrap-pacts">
-        ${opts.map((o, i) => `<button class="wrap-pact-btn" data-pact="${i}">${escapeHtml(o.label)}<small>${escapeHtml(o.sub)}</small></button>`).join("")}
+        ${opts.map((o, i) => `<button class="wrap-pact-btn ${i === sealedIdx ? "picked" : ""}" data-pact="${i}">${escapeHtml(o.label)}<small>${escapeHtml(o.sub)}</small></button>`).join("")}
       </div>
-      <button class="wrap-cta" id="wrapPactSeal" disabled>Sellar el pacto</button>`,
+      <button class="wrap-cta" id="wrapPactSeal" ${sealed ? "" : "disabled"}>${sealed ? "Continuar" : "Sellar el pacto"}</button>`,
       mount(slideEl, api) {
-        let picked = null;
+        let picked = sealedIdx >= 0 ? opts[sealedIdx] : null;
+        const sealBtn = slideEl.querySelector("#wrapPactSeal");
+        if (sealed) slideEl.closest(".wrap-slide").dataset.done = "1"; // no volver a bloquear
         slideEl.querySelectorAll(".wrap-pact-btn").forEach(btn => {
           btn.addEventListener("click", () => {
             slideEl.querySelectorAll(".wrap-pact-btn").forEach(b => b.classList.remove("picked"));
             btn.classList.add("picked");
             picked = opts[Number(btn.dataset.pact)];
-            slideEl.querySelector("#wrapPactSeal").disabled = false;
+            sealBtn.disabled = false;
+            sealBtn.textContent = (sealed && picked.type !== sealed.type) ? "Actualizar pacto" : (sealed ? "Continuar" : "Sellar el pacto");
           });
         });
-        slideEl.querySelector("#wrapPactSeal").addEventListener("click", () => {
+        sealBtn.addEventListener("click", () => {
           if (!picked) return;
-          ctx.wrapMeta.pact = { weekKey: currentWeek, type: picked.type, target: picked.target, label: picked.label };
-          ctx.persist({ wrapMeta: ctx.wrapMeta });
+          const changed = !sealed || picked.type !== sealed.type;
+          if (changed) {
+            ctx.wrapMeta.pact = { weekKey: currentWeek, type: picked.type, target: picked.target, label: picked.label };
+            ctx.persist({ wrapMeta: ctx.wrapMeta });
+          }
           slideEl.closest(".wrap-slide").dataset.done = "1";
           api.next();
         });
@@ -471,25 +466,56 @@ async function runWrap(ctx, wrappedWeekKey) {
     slides.push({ dur: 0, interactive: true, html: `
       <div class="wrap-eyebrow">Tu carta de la semana</div>
       <img class="wrap-card-preview" src="${cardUrl}" alt="Resumen semanal">
-      <button class="wrap-cta" id="wrapShareBtn">Compartir en el Social Club</button>
+      <button class="wrap-cta" id="wrapNativeShareBtn">Compartir / Guardar en Fotos</button>
+      <button class="wrap-cta ghost" id="wrapShareBtn">Publicar en el Social Club</button>
       <button class="wrap-cta ghost" id="wrapDoneBtn">Cerrar</button>
       <div class="wrap-share-status" id="wrapShareStatus"></div>`,
       mount(slideEl, api) {
         const status = slideEl.querySelector("#wrapShareStatus");
+
+        // Hoja de compartir nativa (iOS/Android): desde ahí el usuario
+        // puede guardar en Fotos, mandar por WhatsApp, Instagram, etc.
+        slideEl.querySelector("#wrapNativeShareBtn").addEventListener("click", async () => {
+          try {
+            const blob = await (await fetch(cardUrl)).blob();
+            const file = new File([blob], "focus-semana.jpg", { type: "image/jpeg" });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: "Mi semana en FOCUS" });
+              status.textContent = "";
+            } else {
+              // Fallback (escritorio / navegadores sin Web Share):
+              // descarga directa del archivo.
+              const a = document.createElement("a");
+              a.href = cardUrl;
+              a.download = "focus-semana.jpg";
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              status.textContent = "Imagen descargada \u2713";
+            }
+          } catch (err) {
+            // AbortError = el usuario cerró la hoja de compartir: no es un error
+            if (err && err.name !== "AbortError") {
+              console.error(err);
+              status.textContent = "No se pudo compartir. Int\u00e9ntalo de nuevo.";
+            }
+          }
+        });
+
         slideEl.querySelector("#wrapShareBtn").addEventListener("click", async (e) => {
           const btn = e.currentTarget;
-          btn.disabled = true; status.textContent = "Publicando…";
+          btn.disabled = true; status.textContent = "Publicando\u2026";
           try {
-            const name = (ctx.profileInfo && (ctx.profileInfo.userName || ctx.profileInfo.realName)) || "Anónimo";
+            const name = (ctx.profileInfo && (ctx.profileInfo.userName || ctx.profileInfo.realName)) || "An\u00f3nimo";
             await ctx.createPost(ctx.uid, { name, avatar: ctx.profileInfo && ctx.profileInfo.profilePic || null }, {
-              text: `Mi semana en FOCUS · ${rangeLbl} — ${fmtMin(stats.totalMin)} invertidos en mí, ${stats.activeDays}/7 días activos.`,
+              text: `Mi semana en FOCUS \u00b7 ${rangeLbl} \u2014 ${fmtMin(stats.totalMin)} invertidos en m\u00ed, ${stats.activeDays}/7 d\u00edas activos.`,
               image: cardUrl
             });
-            status.textContent = "Publicado en el Social Club ✓";
+            status.textContent = "Publicado en el Social Club \u2713";
           } catch (err) {
             console.error(err);
             btn.disabled = false;
-            status.textContent = "No se pudo publicar. Inténtalo de nuevo.";
+            status.textContent = "No se pudo publicar. Int\u00e9ntalo de nuevo.";
           }
         });
         slideEl.querySelector("#wrapDoneBtn").addEventListener("click", () => api.close());
@@ -509,6 +535,25 @@ async function runWrap(ctx, wrappedWeekKey) {
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add("open"));
   document.body.style.overflow = "hidden";
+
+  // Persistencia inmediata: la semana queda marcada como vista en
+  // cuanto el wrap se abre. Así, si el usuario sale de la app sin
+  // pulsar la X, no se le vuelve a mostrar todo al volver.
+  ctx.wrapMeta.lastSeenWeek = getWeekKey();
+  ctx.persist({ wrapMeta: ctx.wrapMeta });
+
+  function pactSafetyNet() {
+    if (document.visibilityState !== "hidden" || closed) return;
+    if (stats && (!ctx.wrapMeta.pact || ctx.wrapMeta.pact.weekKey !== getWeekKey())) {
+      ctx.wrapMeta.pact = {
+        weekKey: getWeekKey(), type: "hold",
+        target: Math.max(stats.activeDays, 1),
+        label: "Mantener el ritmo", auto: true
+      };
+      ctx.persist({ wrapMeta: ctx.wrapMeta });
+    }
+  }
+  document.addEventListener("visibilitychange", pactSafetyNet);
 
   const bars = [...overlay.querySelectorAll(".wrap-bar i")];
   const slideEls = [...overlay.querySelectorAll(".wrap-slide")];
@@ -549,6 +594,7 @@ async function runWrap(ctx, wrappedWeekKey) {
         };
       }
       markSeen();
+      document.removeEventListener("visibilitychange", pactSafetyNet);
       cancelAnimationFrame(raf);
       overlay.classList.remove("open");
       document.body.style.overflow = "";
