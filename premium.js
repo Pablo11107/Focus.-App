@@ -12,7 +12,7 @@
 // │      "Yo futuro" y "Mentor.", el botón de suscripción  │
 // │      en ajustes, y el checkout de Stripe               │
 // └────────────────────────────────────────────────────────┘
-export const PREMIUM_ENABLED = true;
+export const PREMIUM_ENABLED = true;   // ← ponlo en false cuando termines de probar
 
 // IDs de precio de Stripe (se crean en el dashboard de Stripe,
 // ver PREMIUM-SETUP.md, paso 3). Sustituir por los reales:
@@ -64,7 +64,15 @@ export async function getPremiumStatus(uid) {
   if (statusCache) return statusCache;
   try {
     const snap = await getDoc(doc(db, "customers", uid));
-    statusCache = { premium: snap.exists() && snap.data().premium === true, disabled: false };
+    const data = snap.exists() ? snap.data() : {};
+    // "founder" = acceso vitalicio concedido a mano (early adopters).
+    // Se comprueba aparte de "premium" para que el badge del menú de
+    // ajustes pueda distinguir a un fundador de un suscriptor normal.
+    statusCache = {
+      premium: data.premium === true || data.founder === true,
+      founder: data.founder === true,
+      disabled: false
+    };
   } catch (err) {
     console.error("No se pudo leer el estado premium:", err);
     // Ante la duda, no bloqueamos: mejor regalar una vista que
@@ -130,9 +138,14 @@ export async function markLockedButtons(uid, buttonIds) {
  */
 export async function mountPremiumButton(btn, uid) {
   if (!PREMIUM_ENABLED || !btn) return;
-  const { premium } = await getPremiumStatus(uid);
+  const { premium, founder } = await getPremiumStatus(uid);
   btn.style.display = "block";
-  if (premium) {
+  if (founder) {
+    // Fundador: acceso de por vida, no hay suscripción que gestionar.
+    btn.textContent = "★ Founder — Premium de por vida";
+    btn.style.color = "#D4AF6D";
+    btn.style.cursor = "default";
+  } else if (premium) {
     btn.textContent = "Manage subscription";
     btn.addEventListener("click", () => openBillingPortal().catch(console.error));
   } else {
@@ -241,6 +254,7 @@ function ensurePaywall(uid) {
       <p class="paywall-fineprint">
         Pago seguro gestionado por Stripe. Cancela en un clic desde
         <a id="paywallPortalLink">gestionar suscripción</a>.
+        ¿Tienes un código de fundador? Introdúcelo en el siguiente paso.
         Todo lo demás en FOCUS sigue siendo gratis, siempre.
       </p>
     </div>
