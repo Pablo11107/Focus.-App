@@ -7,7 +7,7 @@
 //
 // Sube este número cada vez que cambies archivos estáticos para forzar
 // que los usuarios reciban la versión nueva.
-const CACHE_VERSION = "focus-v4";
+const CACHE_VERSION = "focus-v5";
 
 const APP_SHELL = [
   "index.html",
@@ -35,7 +35,18 @@ const APP_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL))
+    // Cacheo tolerante: si un archivo falla (404, red), se omite ese
+    // y el resto sí se cachea. Con cache.addAll un solo fallo abortaba
+    // la instalación entera y dejaba al usuario con la versión anterior.
+    caches.open(CACHE_VERSION).then((cache) =>
+      Promise.all(
+        APP_SHELL.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn("[SW] No se pudo cachear:", url, err);
+          })
+        )
+      )
+    )
   );
   self.skipWaiting();
 });

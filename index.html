@@ -1120,7 +1120,6 @@
 <script type="module">
     import { requireAuth, loadUserDoc, saveUserDoc, logout, resizeImageFile, getItems, createPost } from "./firebase-init.js";
     import { mountPremiumButton } from "./premium.js";
-    import { maybeShowWeeklyWrap, openWeeklyWrap, getWeekKey, todayKey } from "./weekly-wrap.js";
 
     // Esperamos a saber quién ha iniciado sesión (si no hay nadie, nos manda a login.html)
     const user = await requireAuth();
@@ -1165,6 +1164,22 @@
       profilePic: "",
       reason: ""
     };
+
+    // Helpers de fecha propios (antes venían de weekly-wrap.js).
+    // Al ser locales, el registro de datos nunca depende de que ese
+    // módulo cargue bien.
+    function todayKey(d = new Date()) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    function getWeekKey(d = new Date()) {
+      const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dow = copy.getDay() === 0 ? 7 : copy.getDay();
+      copy.setDate(copy.getDate() - (dow - 1));
+      return todayKey(copy);
+    }
 
     // =======================================================
     // WEEKLY WRAP — registro semanal de actividad.
@@ -1267,11 +1282,27 @@
     // =======================================================
     const wrapBtn = document.getElementById("weeklyWrapBtn");
     if (Object.keys(weekLog).length > 0) wrapBtn.style.display = "inline-block";
-    wrapBtn.addEventListener("click", () => openWeeklyWrap(wrapCtx));
-    setTimeout(() => {
-      maybeShowWeeklyWrap(wrapCtx).then(shown => {
-        if (shown) wrapBtn.style.display = "inline-block";
-      }).catch(err => console.warn("Weekly wrap:", err));
+
+    // Carga dinámica y aislada: si weekly-wrap.js o study-library.js
+    // fallan, la app principal sigue intacta.
+    let wrapModule = null;
+    async function loadWrapModule() {
+      if (wrapModule !== null) return wrapModule;
+      try { wrapModule = await import("./weekly-wrap.js"); }
+      catch (e) { console.warn("Módulo Weekly Wrap no disponible:", e); wrapModule = false; }
+      return wrapModule;
+    }
+    wrapBtn.addEventListener("click", async () => {
+      const mod = await loadWrapModule();
+      if (mod && mod.openWeeklyWrap) mod.openWeeklyWrap(wrapCtx);
+      else showToast("El resumen semanal no está disponible ahora mismo.");
+    });
+    setTimeout(async () => {
+      const mod = await loadWrapModule();
+      if (!mod || !mod.maybeShowWeeklyWrap) return;
+      mod.maybeShowWeeklyWrap(wrapCtx)
+        .then(shown => { if (shown) wrapBtn.style.display = "inline-block"; })
+        .catch(err => console.warn("Weekly wrap:", err));
     }, 2600);
 
     // =======================================================
