@@ -1121,7 +1121,6 @@
     import { requireAuth, loadUserDoc, saveUserDoc, logout, resizeImageFile, getItems, createPost } from "./firebase-init.js";
     import { mountPremiumButton } from "./premium.js";
     import { maybeShowWeeklyWrap, openWeeklyWrap, getWeekKey, todayKey } from "./weekly-wrap.js";
-    import { maybePromptForNotifications, clearAppBadge } from "./notifications.js";
 
     // Esperamos a saber quién ha iniciado sesión (si no hay nadie, nos manda a login.html)
     const user = await requireAuth();
@@ -1281,11 +1280,32 @@
     // valor": si ya hay sesiones registradas (usuario que vuelve)
     // o justo después de registrar la primera.
     // =======================================================
-    clearAppBadge();
+    // El módulo de notificaciones se carga de forma DINÁMICA y aislada:
+    // si falla (archivo no subido, navegador sin soporte, VAPID sin
+    // configurar...), la app sigue funcionando con total normalidad.
+    // Con un import estático, cualquier fallo aquí tumbaría toda la
+    // página, incluidos los minutos y el botón premium.
+    let notifModule = null;
+    async function loadNotifModule() {
+      if (notifModule !== null) return notifModule;
+      try {
+        notifModule = await import("./notifications.js");
+        if (notifModule.clearAppBadge) notifModule.clearAppBadge();
+      } catch (e) {
+        console.warn("Módulo de notificaciones no disponible:", e);
+        notifModule = false;
+      }
+      return notifModule;
+    }
     async function askForNotifications(delayMs) {
       try {
+        const mod = await loadNotifModule();
+        if (!mod || !mod.maybePromptForNotifications) return;
         const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.ready : null;
-        setTimeout(() => maybePromptForNotifications(uid, { swRegistration: reg }), delayMs);
+        setTimeout(() => {
+          mod.maybePromptForNotifications(uid, { swRegistration: reg })
+            .catch(e => console.warn("Notificaciones:", e));
+        }, delayMs);
       } catch (e) { console.warn("Notificaciones:", e); }
     }
     if (Object.keys(weekLog).length > 0) askForNotifications(4500);
