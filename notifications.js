@@ -20,7 +20,7 @@ import { db } from "./firebase-init.js";
 import { doc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ⚠️ PEGA AQUÍ TU CLAVE VAPID PÚBLICA (empieza por "B...")
-const VAPID_KEY = BIj_7BmddNt8mw5aFSXpz8MCIy5-J8zVtCrx0UyJcOUlUozB-0VKaXVuiNJEPbILaLm5e9qNtofqCgaqCBeU31U;
+const VAPID_KEY = "PEGA_AQUI_TU_VAPID_KEY";
 
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
@@ -105,18 +105,22 @@ function showInAppToast(title, body) {
 // llamarlo), y no lo descartó en los últimos 7 días.
 const DISMISS_KEY = "focusNotifPromptDismissedAt";
 
-export async function maybePromptForNotifications(uid, { swRegistration } = {}) {
+export async function maybePromptForNotifications(uid, { swRegistration, force = false } = {}) {
   try {
+    // ORDEN IMPORTANTE: en Safari de iOS (sin instalar) la API
+    // Notification NO EXISTE, así que hay que detectar ese caso
+    // ANTES de comprobar la API — si no, salíamos en silencio sin
+    // enseñar siquiera la guía de instalación.
+    if (isIOS && !isStandalone) { showInstallCard(force); return; }
     if (!("Notification" in window)) return;
     if (Notification.permission === "granted") { registerSilently(uid, swRegistration); return; }
-    if (Notification.permission === "denied") return;
-    if (!(await isSupported().catch(() => false))) {
-      // iOS sin instalar: FCM no está soportado en Safari "suelto".
-      if (isIOS && !isStandalone) showInstallCard();
+    if (Notification.permission === "denied") {
+      if (force) showInAppToast("Avisos bloqueados en el sistema", "Act\u00edvalos en Ajustes \u2192 Notificaciones \u2192 Focus.");
       return;
     }
+    if (!(await isSupported().catch(() => false))) return;
     const dismissed = Number(localStorage.getItem(DISMISS_KEY) || 0);
-    if (Date.now() - dismissed < 7 * 24 * 3600 * 1000) return;
+    if (!force && Date.now() - dismissed < 7 * 24 * 3600 * 1000) return;
     if (document.querySelector(".notif-card")) return; // ya hay uno en pantalla
 
     injectStyles();
@@ -165,9 +169,10 @@ async function registerSilently(uid, swRegistration) {
 }
 
 // Guía de instalación para iOS sin PWA instalada
-function showInstallCard() {
+function showInstallCard(force = false) {
   const dismissed = Number(localStorage.getItem(DISMISS_KEY) || 0);
-  if (Date.now() - dismissed < 7 * 24 * 3600 * 1000) return;
+  if (!force && Date.now() - dismissed < 7 * 24 * 3600 * 1000) return;
+  if (document.querySelector(".notif-card")) return;
   injectStyles();
   const card = document.createElement("div");
   card.className = "notif-card";

@@ -862,6 +862,7 @@
     </h1>
     <div class="page-tagline">Your progress, 1% at a time</div>
     <button id="weeklyWrapBtn" style="display:none;margin-top:0.55rem;background:rgba(212,175,109,0.12);border:1px solid rgba(212,175,109,0.4);color:#D4AF6D;border-radius:99px;padding:0.35rem 0.95rem;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:0.04em;">&#127902;&#65039; Tu semana</button>
+    <button id="notifBellBtn" style="display:none;margin-top:0.55rem;margin-left:0.4rem;background:rgba(212,175,109,0.12);border:1px solid rgba(212,175,109,0.4);color:#D4AF6D;border-radius:99px;padding:0.35rem 0.95rem;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:0.04em;">&#128276; Activar avisos</button>
   </header>
 
   <!-- Sección: Barra de progreso anual -->
@@ -1340,6 +1341,27 @@
       } catch (e) { console.warn("Notificaciones:", e); }
     }
     if (Object.keys(weekLog).length > 0) askForNotifications(4500);
+
+    // Botón campana: visible siempre que los avisos no estén ya
+    // concedidos. Un camino explícito y fiable para activarlos,
+    // sin depender de que la tarjeta automática decida salir.
+    const bellBtn = document.getElementById("notifBellBtn");
+    const notifGranted = ("Notification" in window) && Notification.permission === "granted";
+    if (!notifGranted) bellBtn.style.display = "inline-block";
+    bellBtn.addEventListener("click", async () => {
+      const mod = await loadNotifModule();
+      if (!mod || !mod.maybePromptForNotifications) {
+        showToast("Los avisos no están disponibles en este navegador.");
+        return;
+      }
+      const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.ready : null;
+      mod.maybePromptForNotifications(uid, { swRegistration: reg, force: true })
+        .catch(e => console.warn("Notificaciones:", e));
+      // Si el permiso acaba concedido, el botón sobra
+      setTimeout(() => {
+        if (("Notification" in window) && Notification.permission === "granted") bellBtn.style.display = "none";
+      }, 4000);
+    });
 
     // Iconos por categoría, usados en los modales
     // Set de iconos FOCUS: linea fina dorada, coherente con la marca
