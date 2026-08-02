@@ -7,7 +7,7 @@
 //
 // Sube este número cada vez que cambies archivos estáticos para forzar
 // que los usuarios reciban la versión nueva.
-const CACHE_VERSION = "focus-v3";
+const CACHE_VERSION = "focus-v4";
 
 const APP_SHELL = [
   "index.html",
@@ -24,6 +24,7 @@ const APP_SHELL = [
   "true-focus.js",
   "weekly-wrap.js",
   "study-library.js",
+  "notifications.js",
   "you-vs-you.js",
   "you-vs-you.css",
   "manifest.json",
@@ -97,5 +98,46 @@ self.addEventListener("fetch", (event) => {
         return response;
       })
       .catch(() => caches.match(request))
+  );
+});
+
+
+// =======================================================
+// PUSH — Recepción de notificaciones enviadas por las Cloud
+// Functions de FOCUS (mensajes de datos vía FCM). El payload
+// llega como data: { title, body, url, tag, badge }.
+// =======================================================
+self.addEventListener("push", (event) => {
+  let d = {};
+  try { d = event.data ? (event.data.json().data || event.data.json()) : {}; } catch (e) {}
+  const title = d.title || "FOCUS";
+  const options = {
+    body: d.body || "",
+    icon: "icon-192.png",
+    badge: "icon-192.png",           // icono monocromo de la barra (Android)
+    tag: d.tag || "focus-general",   // mismo tag = se reemplaza, no se apila
+    renotify: false,
+    data: { url: d.url || "index.html" }
+  };
+  const tasks = [self.registration.showNotification(title, options)];
+  // Badge numérico en el icono de la app (iOS 16.4+ / Android)
+  if (d.badge && self.navigator && self.navigator.setAppBadge) {
+    tasks.push(self.navigator.setAppBadge(Number(d.badge) || 1).catch(() => {}));
+  }
+  event.waitUntil(Promise.all(tasks));
+});
+
+// Al tocar la notificación: enfocar la app si ya está abierta,
+// o abrirla en la URL indicada (p. ej. index.html para el wrap).
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "index.html";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      for (const win of wins) {
+        if ("focus" in win) { win.navigate(url); return win.focus(); }
+      }
+      return clients.openWindow(url);
+    })
   );
 });

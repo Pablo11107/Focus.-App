@@ -1121,6 +1121,7 @@
     import { requireAuth, loadUserDoc, saveUserDoc, logout, resizeImageFile, getItems, createPost } from "./firebase-init.js";
     import { mountPremiumButton } from "./premium.js";
     import { maybeShowWeeklyWrap, openWeeklyWrap, getWeekKey, todayKey } from "./weekly-wrap.js";
+    import { maybePromptForNotifications, clearAppBadge } from "./notifications.js";
 
     // Esperamos a saber quién ha iniciado sesión (si no hay nadie, nos manda a login.html)
     const user = await requireAuth();
@@ -1273,6 +1274,21 @@
         if (shown) wrapBtn.style.display = "inline-block";
       }).catch(err => console.warn("Weekly wrap:", err));
     }, 2600);
+
+    // =======================================================
+    // NOTIFICACIONES — el badge del icono se limpia al entrar,
+    // y el prompt de permiso solo aparece tras un "momento de
+    // valor": si ya hay sesiones registradas (usuario que vuelve)
+    // o justo después de registrar la primera.
+    // =======================================================
+    clearAppBadge();
+    async function askForNotifications(delayMs) {
+      try {
+        const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.ready : null;
+        setTimeout(() => maybePromptForNotifications(uid, { swRegistration: reg }), delayMs);
+      } catch (e) { console.warn("Notificaciones:", e); }
+    }
+    if (Object.keys(weekLog).length > 0) askForNotifications(4500);
 
     // Iconos por categoría, usados en los modales
     // Set de iconos FOCUS: linea fina dorada, coherente con la marca
@@ -1565,6 +1581,7 @@
         timeSpent[catKey + "Sessions"] = (timeSpent[catKey + "Sessions"] || 0) + 1;
         logWeek(catKey, val);
         saveUserDoc(uid, { timeSpent, weekLog });
+        askForNotifications(2500); // momento de valor: acaba de registrar progreso
         closeModalMinutes();
         showMinutesReel(catKey, timeSpent[catKey]);
         // Las barras se recalculan ya (quedan ocultas detrás del overlay del rodillo)
