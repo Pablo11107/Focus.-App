@@ -196,3 +196,8 @@ async function saveSubscription(sub) {
     updatedAt: FieldValue.serverTimestamp()
   }, { merge: true });
 }
+/* =========================================================
+   4) engagementPulse — notificaciones de racha, wrap y pactos.
+   Vive en engagement.js para no mezclar pagos con engagement.
+   ========================================================= */
+exports.engagementPulse = require("./engagement").engagementPulse;
