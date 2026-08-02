@@ -1117,9 +1117,51 @@
     </div>
   </div>
 
+<script>
+  // ============================================================
+  // DETECTOR DE ERRORES (temporal, para diagnóstico en producción)
+  // Muestra en pantalla cualquier error de carga o ejecución, y
+  // comprueba que los archivos del despliegue existen de verdad.
+  // Cuando todo funcione, este bloque se puede borrar sin más.
+  // ============================================================
+  (function () {
+    function banner(msg, color) {
+      var el = document.getElementById("focusErrBanner");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "focusErrBanner";
+        el.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:" + (color || "#8B1E1E") + ";color:#fff;font:12px/1.5 monospace;padding:8px 12px;max-height:45vh;overflow:auto;white-space:pre-wrap;word-break:break-all;";
+        document.documentElement.appendChild(el);
+      }
+      el.textContent += msg + "\n";
+    }
+    window.addEventListener("error", function (e) {
+      if (e.target && (e.target.src || e.target.href)) {
+        banner("❌ NO CARGA: " + (e.target.src || e.target.href));
+      } else {
+        banner("❌ ERROR: " + e.message + " @ " + (e.filename || "") + ":" + (e.lineno || ""));
+      }
+    }, true);
+    window.addEventListener("unhandledrejection", function (e) {
+      banner("❌ PROMESA: " + (e.reason && (e.reason.stack || e.reason.message) || e.reason));
+    });
+    // Comprobación activa: ¿existen los archivos en el servidor?
+    ["firebase-init.js", "premium.js", "weekly-wrap.js", "study-library.js", "notifications.js", "sw.js"].forEach(function (f) {
+      fetch(f, { method: "HEAD", cache: "no-store" }).then(function (r) {
+        if (!r.ok) banner("❌ FALTA EN EL SERVIDOR (" + r.status + "): " + f);
+      }).catch(function () { banner("❌ INALCANZABLE: " + f); });
+    });
+    // Señal de vida del script principal: si en 6s el módulo no ha
+    // marcado que arrancó, avisamos de que murió antes de empezar.
+    setTimeout(function () {
+      if (!window.__focusBooted) banner("⚠️ El script principal NO llegó a ejecutarse. El error está arriba.", "#7A5C00");
+    }, 6000);
+  })();
+</script>
 <script type="module">
     import { requireAuth, loadUserDoc, saveUserDoc, logout, resizeImageFile, getItems, createPost } from "./firebase-init.js";
     import { mountPremiumButton } from "./premium.js";
+    window.__focusBooted = true; // señal de vida para el detector de errores
 
     // Esperamos a saber quién ha iniciado sesión (si no hay nadie, nos manda a login.html)
     const user = await requireAuth();
