@@ -1340,7 +1340,10 @@
         }, delayMs);
       } catch (e) { console.warn("Notificaciones:", e); }
     }
-    if (Object.keys(weekLog).length > 0) askForNotifications(4500);
+    // Automático: en cada apertura, si los avisos no están activados,
+    // se invita a activarlos (la tarjeta respeta un descanso de 24h
+    // tras un "Ahora no", y desaparece para siempre una vez activados).
+    askForNotifications(4500);
 
     // Botón campana: visible siempre que los avisos no estén ya
     // concedidos. Un camino explícito y fiable para activarlos,

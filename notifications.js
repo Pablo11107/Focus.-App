@@ -20,7 +20,7 @@ import { db } from "./firebase-init.js";
 import { doc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ⚠️ PEGA AQUÍ TU CLAVE VAPID PÚBLICA (empieza por "B...")
-const VAPID_KEY = "BIj_7BmddNt8mw5aFSXpz8MCIy5-J8zVtCrx0UyJcOUlUozB-0VKaXVuiNJEPbILaLm5e9qNtofqCgaqCBeU31U";
+const VAPID_KEY = "PEGA_AQUI_TU_VAPID_KEY";
 
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
@@ -112,15 +112,27 @@ export async function maybePromptForNotifications(uid, { swRegistration, force =
     // ANTES de comprobar la API — si no, salíamos en silencio sin
     // enseñar siquiera la guía de instalación.
     if (isIOS && !isStandalone) { showInstallCard(force); return; }
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "granted") { registerSilently(uid, swRegistration); return; }
+    if (!("Notification" in window)) {
+      if (force) showInAppToast("Este dispositivo no admite avisos", "En iPhone se necesita iOS 16.4 o superior y la app instalada.");
+      return;
+    }
+    if (Notification.permission === "granted") {
+      registerSilently(uid, swRegistration);
+      if (force) showInAppToast("Avisos ya activados \u2713", "Todo en orden: llegar\u00e1n cuando toque.");
+      return;
+    }
     if (Notification.permission === "denied") {
       if (force) showInAppToast("Avisos bloqueados en el sistema", "Act\u00edvalos en Ajustes \u2192 Notificaciones \u2192 Focus.");
       return;
     }
-    if (!(await isSupported().catch(() => false))) return;
+    if (!(await isSupported().catch(() => false))) {
+      if (force) showInAppToast("Avisos no disponibles", "Tu versi\u00f3n de iOS no admite push web (se necesita 16.4+).");
+      return;
+    }
     const dismissed = Number(localStorage.getItem(DISMISS_KEY) || 0);
-    if (!force && Date.now() - dismissed < 7 * 24 * 3600 * 1000) return;
+    // La tarjeta automática reaparece cada 24h (antes 7 días): el
+    // usuario pidió que la invitación sea proactiva.
+    if (!force && Date.now() - dismissed < 24 * 3600 * 1000) return;
     if (document.querySelector(".notif-card")) return; // ya hay uno en pantalla
 
     injectStyles();
