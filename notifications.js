@@ -20,7 +20,7 @@ import { db } from "./firebase-init.js";
 import { doc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ⚠️ PEGA AQUÍ TU CLAVE VAPID PÚBLICA (empieza por "B...")
-const VAPID_KEY = "PEGA_AQUI_TU_VAPID_KEY";
+const VAPID_KEY = "BIj_7BmddNt8mw5aFSXpz8MCIy5-J8zVtCrx0UyJcOUlUozB-0VKaXVuiNJEPbILaLm5e9qNtofqCgaqCBeU31U";
 
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
