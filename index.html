@@ -1118,34 +1118,6 @@
     </div>
   </div>
 
-<script>
-  // ============================================================
-  // DIAGNÓSTICO TEMPORAL — panel de migas de pan en pantalla.
-  // Se retira cuando las notificaciones queden verificadas.
-  // ============================================================
-  window.FDIAG = function (msg, color) {
-    var el = document.getElementById("focusDiagPanel");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "focusDiagPanel";
-      el.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#0D2137;color:#9FD1FF;font:11px/1.6 monospace;padding:6px 10px;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-all;border-top:2px solid #2E6DA4;";
-      document.documentElement.appendChild(el);
-    }
-    if (color) { el.style.background = color; }
-    el.textContent += msg + "\n";
-    el.scrollTop = el.scrollHeight;
-  };
-  window.addEventListener("error", function (e) {
-    if (e.target && (e.target.src || e.target.href)) {
-      window.FDIAG("❌ NO CARGA: " + (e.target.src || e.target.href), "#3A0D0D");
-    } else {
-      window.FDIAG("❌ ERROR: " + e.message + " @ " + (e.filename||"").split("/").pop() + ":" + (e.lineno||""), "#3A0D0D");
-    }
-  }, true);
-  window.addEventListener("unhandledrejection", function (e) {
-    window.FDIAG("❌ PROMESA: " + (e.reason && (e.reason.stack || e.reason.message) || e.reason), "#3A0D0D");
-  });
-</script>
 <script type="module">
     import { requireAuth, loadUserDoc, saveUserDoc, logout, resizeImageFile, getItems, createPost } from "./firebase-init.js";
     import { mountPremiumButton } from "./premium.js";
@@ -1349,12 +1321,9 @@
     async function loadNotifModule() {
       if (notifModule !== null) return notifModule;
       try {
-        FDIAG("2. importando notifications.js…");
         notifModule = await import("./notifications.js");
-        FDIAG("3. módulo importado ✓ exporta: " + Object.keys(notifModule).join(", "));
         if (notifModule.clearAppBadge) notifModule.clearAppBadge();
       } catch (e) {
-        FDIAG("❌ FALLO al importar notifications.js: " + (e && (e.message || e)), "#3A0D0D");
         console.warn("Módulo de notificaciones no disponible:", e);
         notifModule = false;
       }
@@ -1362,18 +1331,14 @@
     }
     async function askForNotifications(delayMs) {
       try {
-        FDIAG("1. askForNotifications lanzado (auto)");
         const mod = await loadNotifModule();
-        if (!mod || !mod.maybePromptForNotifications) { FDIAG("✋ módulo no disponible, fin"); return; }
-        FDIAG("4. esperando service worker…");
+        if (!mod || !mod.maybePromptForNotifications) return;
         const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.ready : null;
-        FDIAG("5. SW listo ✓ — mostrando invitación en " + delayMs + "ms");
         setTimeout(() => {
           mod.maybePromptForNotifications(uid, { swRegistration: reg })
-            .then(() => FDIAG("6. maybePrompt terminó"))
-            .catch(e => FDIAG("❌ maybePrompt: " + (e && (e.message || e)), "#3A0D0D"));
+            .catch(e => console.warn("Notificaciones:", e));
         }, delayMs);
-      } catch (e) { FDIAG("❌ askForNotifications: " + (e && (e.message || e)), "#3A0D0D"); }
+      } catch (e) { console.warn("Notificaciones:", e); }
     }
     // Automático: en cada apertura, si los avisos no están activados,
     // se invita a activarlos (la tarjeta respeta un descanso de 24h
@@ -1387,17 +1352,14 @@
     const notifGranted = ("Notification" in window) && Notification.permission === "granted";
     if (!notifGranted) bellBtn.style.display = "inline-block";
     bellBtn.addEventListener("click", async () => {
-      FDIAG("1. CAMPANA pulsada");
       const mod = await loadNotifModule();
       if (!mod || !mod.maybePromptForNotifications) {
         showToast("Los avisos no están disponibles en este navegador.");
         return;
       }
       const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.ready : null;
-      FDIAG("4b. llamando maybePrompt con force…");
       mod.maybePromptForNotifications(uid, { swRegistration: reg, force: true })
-        .then(() => FDIAG("5b. maybePrompt(force) terminó"))
-        .catch(e => FDIAG("❌ maybePrompt(force): " + (e && (e.message || e)), "#3A0D0D"));
+        .catch(e => console.warn("Notificaciones:", e));
       // Si el permiso acaba concedido, el botón sobra
       setTimeout(() => {
         if (("Notification" in window) && Notification.permission === "granted") bellBtn.style.display = "none";

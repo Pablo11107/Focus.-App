@@ -22,8 +22,6 @@ import { doc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.1
 // ⚠️ PEGA AQUÍ TU CLAVE VAPID PÚBLICA (empieza por "B...")
 const VAPID_KEY = "PEGA_AQUI_TU_VAPID_KEY";
 
-const FD = (m) => { if (window.FDIAG) window.FDIAG("   [notif] " + m); };
-
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
 
@@ -34,7 +32,7 @@ function injectStyles() {
   stylesInjected = true;
   const tag = document.createElement("style");
   tag.textContent = `
-  .notif-card{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 88px);transform:translateX(-50%) translateY(20px);width:min(92vw,360px);background:linear-gradient(180deg,#2F2E37,#100F19);border:1px solid rgba(212,175,109,.35);border-radius:18px;padding:1.1rem 1.2rem;color:#fff;z-index:1100;opacity:0;pointer-events:none;transition:opacity .35s ease,transform .35s cubic-bezier(.22,1,.36,1);box-shadow:0 18px 44px rgba(0,0,0,.5);}
+  .notif-card{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 88px);transform:translateX(-50%) translateY(20px);width:min(92vw,360px);background:linear-gradient(180deg,#2F2E37,#100F19);border:1px solid rgba(212,175,109,.35);border-radius:18px;padding:1.1rem 1.2rem;color:#fff;z-index:1400;opacity:0;pointer-events:none;transition:opacity .35s ease,transform .35s cubic-bezier(.22,1,.36,1);box-shadow:0 18px 44px rgba(0,0,0,.5);}
   .notif-card.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0);}
   .notif-card h4{margin:0 0 .35rem;font-size:1rem;font-weight:700;}
   .notif-card p{margin:0 0 .8rem;font-size:.82rem;line-height:1.5;color:rgba(255,255,255,.72);}
@@ -71,20 +69,20 @@ async function saveTokenToProfile(uid, token) {
 
 // ---------- Activación real (requiere gesto del usuario) ----------
 async function enablePush(uid, swRegistration) {
-  FD("pidiendo permiso al sistema…");
+  
   const permission = await Notification.requestPermission();
-  FD("respuesta del sistema: " + permission);
+  
   if (permission !== "granted") return { ok: false, reason: permission };
-  FD("generando token FCM…");
+  
   const messaging = getMessaging();
   const token = await getToken(messaging, {
     vapidKey: VAPID_KEY,
     serviceWorkerRegistration: swRegistration
   });
-  if (!token) { FD("❌ getToken no devolvió token"); return { ok: false, reason: "no-token" }; }
-  FD("token obtenido ✓ guardando en Firestore…");
+  if (!token) { return { ok: false, reason: "no-token" }; }
+  
   await saveTokenToProfile(uid, token);
-  FD("token guardado en tu perfil ✓✓✓");
+  
   // Mensajes recibidos con la app ABIERTA: toast discreto dentro
   // de la app (el sistema no los muestra en primer plano).
   onMessage(messaging, (payload) => {
@@ -118,26 +116,26 @@ export async function maybePromptForNotifications(uid, { swRegistration, force =
     // Notification NO EXISTE, así que hay que detectar ese caso
     // ANTES de comprobar la API — si no, salíamos en silencio sin
     // enseñar siquiera la guía de instalación.
-    FD("iOS=" + isIOS + " · instalada=" + isStandalone + " · permiso=" + (("Notification" in window) ? Notification.permission : "API ausente"));
-    if (isIOS && !isStandalone) { FD("rama: Safari sin instalar → guía de instalación"); showInstallCard(force); return; }
+    
+    if (isIOS && !isStandalone) { showInstallCard(force); return; }
     if (!("Notification" in window)) {
-      FD("rama: sin API de notificaciones");
+      
       if (force) showInAppToast("Este dispositivo no admite avisos", "En iPhone se necesita iOS 16.4 o superior y la app instalada.");
       return;
     }
     if (Notification.permission === "granted") {
-      FD("rama: permiso ya concedido → refrescando token");
+      
       registerSilently(uid, swRegistration);
       if (force) showInAppToast("Avisos ya activados \u2713", "Todo en orden: llegar\u00e1n cuando toque.");
       return;
     }
     if (Notification.permission === "denied") {
-      FD("rama: permiso DENEGADO en el sistema");
+      
       if (force) showInAppToast("Avisos bloqueados en el sistema", "Act\u00edvalos en Ajustes \u2192 Notificaciones \u2192 Focus.");
       return;
     }
     if (!(await isSupported().catch(() => false))) {
-      FD("rama: FCM no soportado en este contexto");
+      
       if (force) showInAppToast("Avisos no disponibles", "Tu versi\u00f3n de iOS no admite push web (se necesita 16.4+).");
       return;
     }
@@ -147,7 +145,7 @@ export async function maybePromptForNotifications(uid, { swRegistration, force =
     if (!force && Date.now() - dismissed < 24 * 3600 * 1000) return;
     if (document.querySelector(".notif-card")) return; // ya hay uno en pantalla
 
-    FD("rama: mostrando TARJETA de activación");
+    
     injectStyles();
     const card = document.createElement("div");
     card.className = "notif-card";
