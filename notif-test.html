@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- Para que al añadirla a pantalla de inicio se abra en modo app
+       (requisito de iOS para que exista la API de notificaciones) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>FOCUS · Test de notificaciones</title>
+  <style>
+    body { margin: 0; background: #100F19; color: #fff; font-family: -apple-system, system-ui, sans-serif; padding: max(env(safe-area-inset-top), 16px) 16px 40px; }
+    h2 { font-size: 1.1rem; margin: .4rem 0 1rem; }
+    button { display: block; width: 100%; box-sizing: border-box; margin: .5rem 0; padding: 1rem; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; background: #D4AF6D; color: #100F19; }
+    button.sec { background: #2F2E37; color: #fff; }
+    #log { background: #000; color: #7CFC9A; font: 12px/1.6 Menlo, monospace; padding: 10px; border-radius: 10px; white-space: pre-wrap; word-break: break-all; min-height: 200px; margin-top: 1rem; }
+    #token { background: #1B2A1B; color: #B8FFC9; font: 11px/1.5 Menlo, monospace; padding: 10px; border-radius: 10px; word-break: break-all; margin-top: .6rem; display: none; }
+  </style>
+</head>
+<body>
+  <h2>🔔 FOCUS · Test de notificaciones</h2>
+  <button id="btnStatus" class="sec">1 · Ver estado del dispositivo</button>
+  <button id="btnEnable">2 · Pedir permiso y generar token</button>
+  <button id="btnCopy" class="sec" style="display:none">3 · Copiar token</button>
+  <div id="token"></div>
+  <div id="log">Pulsa el botón 1 para empezar.\n</div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+
+    const logEl = document.getElementById("log");
+    const L = (m) => { logEl.textContent += m + "\n"; logEl.scrollTop = logEl.scrollHeight; };
+    window.addEventListener("error", e => L("❌ ERROR: " + e.message + " @" + (e.lineno||"")));
+    window.addEventListener("unhandledrejection", e => L("❌ PROMESA: " + (e.reason && (e.reason.message || e.reason))));
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBk0VfN4BATPOuMIB44zTOhSNya1q6uHd4",
+      authDomain: "focus-app-2746d.firebaseapp.com",
+      projectId: "focus-app-2746d",
+      storageBucket: "focus-app-2746d.firebasestorage.app",
+      messagingSenderId: "940097371366",
+      appId: "1:940097371366:web:53efc673e5b563045b8f27"
+    };
+    const app = initializeApp(firebaseConfig);
+
+    // La clave VAPID se lee automáticamente de notifications.js
+    // (misma carpeta), para no tener que pegarla dos veces.
+    async function readVapid() {
+      const txt = await (await fetch("notifications.js", { cache: "no-store" })).text();
+      const m = txt.match(/VAPID_KEY\s*=\s*"([^"]+)"/);
+      return m ? m[1] : null;
+    }
+
+    document.getElementById("btnStatus").onclick = async () => {
+      L("— ESTADO —");
+      L("standalone: " + (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true));
+      L("API Notification: " + ("Notification" in window));
+      if ("Notification" in window) L("permiso: " + Notification.permission);
+      L("serviceWorker API: " + ("serviceWorker" in navigator));
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        L("SW registrados: " + regs.length + (regs[0] ? " (scope " + regs[0].scope + ")" : ""));
+      }
+      L("PushManager: " + ("PushManager" in window));
+      const sup = await isSupported().catch(e => "error: " + e.message);
+      L("FCM isSupported: " + sup);
+      const vapid = await readVapid().catch(e => null);
+      L("VAPID leída de notifications.js: " + (vapid ? vapid.slice(0, 12) + "… ✓" : "❌ NO ENCONTRADA"));
+      L("iOS versión (userAgent): " + (navigator.userAgent.match(/OS (\d+_\d+)/) || ["", "?"])[1].replace("_", "."));
+    };
+
+    document.getElementById("btnEnable").onclick = async () => {
+      try {
+        L("— ACTIVACIÓN —");
+        L("1. registrando service worker…");
+        const reg = await navigator.serviceWorker.register("sw.js");
+        await navigator.serviceWorker.ready;
+        L("2. SW listo ✓");
+        L("3. pidiendo permiso al sistema…");
+        const perm = await Notification.requestPermission();
+        L("4. respuesta: " + perm);
+        if (perm !== "granted") { L("✋ Sin permiso no hay token. Fin."); return; }
+        const vapid = await readVapid();
+        if (!vapid) { L("❌ No pude leer la VAPID de notifications.js"); return; }
+        L("5. generando token FCM…");
+        const token = await getToken(getMessaging(app), { vapidKey: vapid, serviceWorkerRegistration: reg });
+        if (!token) { L("❌ getToken devolvió vacío"); return; }
+        L("6. TOKEN GENERADO ✓✓✓ (" + token.length + " caracteres)");
+        const tEl = document.getElementById("token");
+        tEl.style.display = "block";
+        tEl.textContent = token;
+        const cBtn = document.getElementById("btnCopy");
+        cBtn.style.display = "block";
+        cBtn.onclick = () => { navigator.clipboard.writeText(token).then(() => L("token copiado al portapapeles ✓")); };
+        L("7. Copia el token y envíate un mensaje de prueba desde Firebase → Messaging.");
+      } catch (e) {
+        L("❌ EXCEPCIÓN: " + (e && (e.message || e)));
+      }
+    };
+  </script>
+</body>
+</html>
