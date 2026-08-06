@@ -228,8 +228,8 @@ function ensurePaywall(uid) {
   paywallEl.innerHTML = `
     <div class="paywall-card" role="dialog" aria-modal="true" aria-label="FOCUS Premium">
       <button class="paywall-close" aria-label="Cerrar">✕</button>
-      <div class="paywall-eyebrow">Focus Premium</div>
-      <div class="paywall-title">Tu historia completa, con toda la profundidad</div>
+      <div class="paywall-eyebrow">Focus Premium &middot; 7 d&iacute;as gratis</div>
+      <div class="paywall-title">Pru&eacute;balo todo. Gratis. Una semana.</div>
       <ul class="paywall-benefits">
         <li><strong>Yo futuro</strong> — retrato psicológico, proyecciones a 90 días, índice de fuerza del hábito, autoeficacia y perseverancia.</li>
         <li><strong>Mentor</strong> — consultas ilimitadas construidas con tus datos reales y respaldo científico.</li>
@@ -238,13 +238,13 @@ function ensurePaywall(uid) {
       <div class="paywall-plans">
         <button class="paywall-plan best" data-plan="yearly">
           <span><span class="plan-name">Anual<span class="plan-badge">−44%</span></span>
-          <span class="plan-sub">19,99 € al año · sale a 1,67 €/mes</span></span>
-          <span class="plan-price">19,99 €</span>
+          <span class="plan-sub">7 d&iacute;as gratis &middot; luego 19,99 &euro;/a&ntilde;o (1,67 &euro;/mes)</span></span>
+          <span class="plan-price">0 &euro; hoy</span>
         </button>
         <button class="paywall-plan" data-plan="monthly">
           <span><span class="plan-name">Mensual</span>
-          <span class="plan-sub">Sin permanencia, cancela cuando quieras</span></span>
-          <span class="plan-price">2,99 €</span>
+          <span class="plan-sub">7 d&iacute;as gratis &middot; luego 2,99 &euro;/mes</span></span>
+          <span class="plan-price">0 &euro; hoy</span>
         </button>
       </div>
       <div class="paywall-paymethods">
@@ -252,10 +252,13 @@ function ensurePaywall(uid) {
       </div>
       <p class="paywall-error" id="paywallError"></p>
       <p class="paywall-fineprint">
-        Pago seguro gestionado por Stripe. Cancela en un clic desde
-        <a id="paywallPortalLink">gestionar suscripción</a>.
-        ¿Tienes un código de fundador? Introdúcelo en el siguiente paso.
-        Todo lo demás en FOCUS sigue siendo gratis, siempre.
+        Al terminar los 7 d&iacute;as de prueba se cobrar&aacute; autom&aacute;ticamente el plan
+        elegido, salvo que canceles antes &mdash; en un clic desde
+        <a id="paywallPortalLink">gestionar suscripci&oacute;n</a>, sin preguntas.
+        Pago seguro gestionado por Stripe.
+        &iquest;Tienes un c&oacute;digo de fundador? Introd&uacute;celo en el siguiente paso.
+        La prueba gratuita est&aacute; disponible una sola vez por usuario.
+        Todo lo dem&aacute;s en FOCUS sigue siendo gratis, siempre.
       </p>
     </div>
   `;

@@ -1166,6 +1166,34 @@
       reason: ""
     };
 
+    // ============================================================
+    // BLOQUEO DE SCROLL PARA MODALES (iOS)
+    // Al abrir un modal se congela el fondo en la posición actual;
+    // al cerrar se restaura exactamente donde estaba. Sin esto, en
+    // iOS el focus de un input dentro de un overlay fijo desplaza
+    // el documento hasta arriba y el usuario pierde su sitio.
+    // ============================================================
+    let _lockScrollY = 0;
+    let _locks = 0;
+    function lockScroll() {
+      if (++_locks > 1) return;
+      _lockScrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${_lockScrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.width = "100%";
+    }
+    function unlockScroll() {
+      if (_locks === 0 || --_locks > 0) return;
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+      window.scrollTo(0, _lockScrollY);
+    }
+
     // Helpers de fecha propios (antes venían de weekly-wrap.js).
     // Al ser locales, el registro de datos nunca depende de que ese
     // módulo cargue bien.
@@ -1573,10 +1601,12 @@
         btn.classList.toggle("selected", btn.dataset.value === "Yes");
       });
 
+      lockScroll();
       yesNoModal.classList.add("open");
     }
     function closeYesNo() {
       yesNoModal.classList.remove("open");
+      unlockScroll();
     }
     closeYesNoModal.addEventListener("click", closeYesNo);
 
@@ -1625,11 +1655,13 @@
       minutesInput.dataset.category = catKey;
       minutesChipGroup.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
 
+      lockScroll();
       minutesModal.classList.add("open");
-      setTimeout(() => minutesInput.focus(), 200);
+      setTimeout(() => minutesInput.focus({ preventScroll: true }), 200);
     }
     function closeModalMinutes() {
       minutesModal.classList.remove("open");
+      unlockScroll();
     }
     closeMinutesModal.addEventListener("click", closeModalMinutes);
 
@@ -1713,11 +1745,13 @@
       profilePicInput.value  = "";
       delete profilePicInput.dataset.resized;
       setAvatarPreview(profileInfo.profilePic);
+      lockScroll();
       profileModal.classList.add("open");
     });
 
     closeProfileModalBtn.addEventListener("click", () => {
       profileModal.classList.remove("open");
+      unlockScroll();
     });
 
     profilePicInput.addEventListener("change", async () => {
@@ -1743,6 +1777,7 @@
       saveUserDoc(uid, { profileInfo });
       showToast("Profile information saved!");
       profileModal.classList.remove("open");
+      unlockScroll();
     }
 
     /* -- Cuenta y seguridad -- */
@@ -1914,10 +1949,11 @@
       customCatRate.value = "";
       selectedIconKey = null;
       customCatIcons.querySelectorAll(".icon-choice").forEach(c => c.classList.remove("selected"));
+      lockScroll();
       customCatModal.classList.add("open");
-      setTimeout(() => customCatName.focus(), 200);
+      setTimeout(() => customCatName.focus({ preventScroll: true }), 200);
     }
-    closeCustomCat.addEventListener("click", () => customCatModal.classList.remove("open"));
+    closeCustomCat.addEventListener("click", () => { customCatModal.classList.remove("open"); unlockScroll(); });
 
     // Construye e inserta la tarjeta de una categoría personalizada
     function renderCustomCard(cat) {
@@ -1940,8 +1976,8 @@
     saveCustomCatBtn.addEventListener("click", () => {
       const label = customCatName.value.trim();
       const rate = parseInt(customCatRate.value, 10);
-      if (!label) { customCatName.focus(); return; }
-      if (isNaN(rate) || rate < 1) { customCatRate.focus(); return; }
+      if (!label) { customCatName.focus({ preventScroll: true }); return; }
+      if (isNaN(rate) || rate < 1) { customCatRate.focus({ preventScroll: true }); return; }
       if (!selectedIconKey) { return; }
       const cat = { key: "custom_" + Date.now(), label, rate, icon: selectedIconKey };
       customCats.push(cat);
@@ -1951,6 +1987,7 @@
       renderCustomCard(cat);
       recalcAll(cat.key);
       customCatModal.classList.remove("open");
+      unlockScroll();
     });
 
     // Borrar categoría personalizada (con confirmación)
