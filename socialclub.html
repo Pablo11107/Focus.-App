@@ -929,7 +929,10 @@
         showToast("Posted to Socialclub!");
       } catch (err) {
         console.error(err);
-        showToast("Couldn't publish your post. Try again.");
+        // Cupo agotado: mensaje concreto en vez de un error genérico.
+        showToast(err.code === "rate-limited"
+          ? err.userMessage
+          : "Couldn't publish your post. Try again.");
       } finally {
         postButton.disabled = false;
         postButton.textContent = "Post";

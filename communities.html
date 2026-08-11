@@ -601,7 +601,14 @@
         await sendMessage(currentChatId, { uid, name: myName, avatar: profileInfo.profilePic }, text);
       } catch (err) {
         console.error(err);
-        showToast("Couldn't send that message. Try again.");
+        if (err.code === "rate-limited") {
+          // Le devolvemos el texto al cuadro para que no pierda lo escrito.
+          messageInput.value = text;
+          sendBtn.disabled = false;
+          showToast(err.userMessage);
+        } else {
+          showToast("Couldn't send that message. Try again.");
+        }
       }
     }
     sendBtn.addEventListener('click', handleSend);

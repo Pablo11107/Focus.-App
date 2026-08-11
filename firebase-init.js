@@ -253,7 +253,91 @@ export async function deleteItem(uid, subcollection, itemId) {
 //   users/{uid}/saved/{postId}   -> guardados, son privados de cada usuario
 // =======================================================
 
+// =======================================================
+// Control de frecuencia (rate limiting)
+//
+// Modelo de ventana con cupo, igual que X / Slack / Discord: tienes N
+// acciones por ventana y puedes gastarlas seguidas. Nada de esperar un
+// tiempo fijo entre acción y acción, que es lo que molesta al usuario
+// real sin frenar de verdad al que abusa.
+//
+// El documento vive en throttles/{uid}/actions/{action} y las reglas de
+// Firestore son las que validan la transición: aquí solo proponemos el
+// siguiente estado. Si el cupo está agotado, Firestore rechaza la
+// escritura y lanzamos un error con code = "rate-limited".
+// =======================================================
+
+const LIMITS = {
+  post: {
+    windowMs: 60 * 60 * 1000,   // 1 hora
+    max: 10,
+    message: "You've posted a lot this hour. Give it a few minutes and try again."
+  },
+  msg: {
+    windowMs: 60 * 1000,        // 1 minuto
+    max: 30,
+    message: "Slow down a little — that's a lot of messages at once."
+  }
+};
+
+function rateLimitError(action) {
+  const err = new Error(LIMITS[action].message);
+  err.code = "rate-limited";
+  err.userMessage = LIMITS[action].message;
+  return err;
+}
+
+// Reserva un turno. Lanza error "rate-limited" si el cupo está agotado.
+export async function claimSlot(uid, action) {
+  const cfg = LIMITS[action];
+  if (!cfg) return;
+
+  const ref = doc(db, "throttles", uid, "actions", action);
+  const fresh = () => ({
+    windowStart: serverTimestamp(),
+    at: serverTimestamp(),
+    count: 1
+  });
+
+  let payload = fresh();
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const d = snap.data();
+      const startMs = d.windowStart?.toMillis?.() ?? 0;
+      // ¿Seguimos dentro de la ventana? Entonces sumamos uno.
+      if (Date.now() - startMs <= cfg.windowMs) {
+        payload = {
+          windowStart: d.windowStart,
+          at: serverTimestamp(),
+          count: (d.count || 0) + 1
+        };
+      }
+    }
+  } catch (_) {
+    // Si no podemos leer el estado, probamos con ventana nueva.
+  }
+
+  try {
+    await setDoc(ref, payload);
+    return;
+  } catch (err) {
+    if (err.code !== "permission-denied") throw err;
+  }
+
+  // El reloj del navegador y el del servidor pueden discrepar justo en
+  // el borde de la ventana. Reintentamos una vez con ventana nueva:
+  // si el cupo está realmente agotado, esto también se deniega.
+  try {
+    await setDoc(ref, fresh());
+  } catch (err) {
+    if (err.code === "permission-denied") throw rateLimitError(action);
+    throw err;
+  }
+}
+
 export async function createPost(uid, author, data) {
+  await claimSlot(uid, "post");
   const colRef = collection(db, "posts");
   const docRef = await addDoc(colRef, {
     authorId: uid,
@@ -397,6 +481,7 @@ export function listenToMessages(chatId, callback) {
 }
 
 export async function sendMessage(chatId, sender, text) {
+  await claimSlot(sender.uid, "msg");
   const colRef = collection(db, "chats", chatId, "messages");
   await addDoc(colRef, {
     senderId: sender.uid,
