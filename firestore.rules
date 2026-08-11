@@ -1,11 +1,14 @@
 rules_version = '2';
 
-// Reglas de seguridad de Firestore para FOCUS. (v2 — con validación de esquema)
-// Equivalente a "RLS": cada usuario solo puede tocar sus propios datos,
-// aunque tenga la apiKey (que es pública por diseño en toda app Firebase).
-// Además, valida la FORMA de los datos compartidos (posts, chats, mensajes)
-// para que nadie pueda guardar campos extra, textos desmedidos o URLs que
-// no sean imágenes reales (defensa en profundidad contra XSS almacenado).
+// Reglas de seguridad de Firestore para FOCUS. (v3 — users cerrado + profiles)
+//
+// Cambio principal respecto a v2:
+//   users/{uid} ya NO es legible por cualquier autenticado. Antes lo era
+//   porque findUserByEmail() hacía una query sobre la colección users,
+//   lo que dejaba los hábitos, profileInfo, timeSpent y el "reason" del
+//   legacy de TODOS los usuarios al alcance de cualquiera con una cuenta.
+//   Ahora ese dato vive aparte, en profiles/{sha256(email)} -> { uid },
+//   que es lo mínimo imprescindible para poder invitar a alguien a un chat.
 //
 // Cómo desplegarlas: Firebase console > Firestore Database > Rules >
 // pega este contenido entero y pulsa "Publish".
@@ -29,24 +32,54 @@ service cloud.firestore {
     }
 
     // =====================================================
-    // users/{uid} — documento principal (hábitos, timeSpent, email...)
+    // users/{uid} — documento principal (hábitos, timeSpent, profileInfo...)
     //
-    // - Escribir/borrar: solo el dueño.
-    // - Leer: cualquier usuario autenticado. Necesario porque
-    //   findUserByEmail() hace una query sobre la colección users
-    //   para invitar a gente a los chats. Si más adelante quieres
-    //   que los hábitos sean 100% privados, mueve el email a una
-    //   colección "profiles" pública y restringe users a solo dueño.
+    // CERRADO. Ni leer ni escribir salvo el propio dueño. Todo lo que
+    // guarda esta colección es dato personal sensible: minutos dedicados,
+    // categorías, foto de perfil, el motivo por el que empezaste.
     // =====================================================
     match /users/{uid} {
-      allow read: if signedIn();
-      allow create, update, delete: if isOwner(uid);
+      allow read, create, update, delete: if isOwner(uid);
 
-      // Subcolecciones privadas del usuario: fotos diarias, memories,
-      // guardados, reposts espejo, etc. Solo el dueño, lectura incluida.
+      // Subcolecciones privadas: fotos diarias, memories, guardados,
+      // reposts espejo, etc. Solo el dueño, lectura incluida.
       match /{subcollection}/{docId} {
         allow read, write: if isOwner(uid);
       }
+    }
+
+    // =====================================================
+    // profiles/{emailHash} — directorio mínimo para invitar a chats
+    //
+    // El ID del documento es sha256(email en minúsculas, sin espacios),
+    // en hexadecimal. El contenido es UN solo campo: { uid }.
+    //
+    // - get:  cualquier autenticado. Como hay que conocer el email exacto
+    //         para calcular el hash, solo puedes comprobar emails que ya
+    //         tienes. No se puede "pescar".
+    // - list: NADIE. Esto es lo que impide que alguien se descargue la
+    //         colección entera y se lleve la lista de emails.
+    // - write: solo puedes crear el documento que corresponde a TU propio
+    //         email verificado por Firebase Auth. La regla recalcula el
+    //         hash del token y lo compara con el ID: no puedes registrar
+    //         el email de otra persona apuntando a tu uid.
+    // =====================================================
+    match /profiles/{emailHash} {
+      function myEmailHash() {
+        return hashing.sha256(request.auth.token.email.lower())
+                 .toHexString().lower();
+      }
+
+      allow get: if signedIn();
+      allow list: if false;
+
+      allow create, update: if signedIn()
+        && request.auth.token.email != null
+        && emailHash == myEmailHash()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
     // =====================================================

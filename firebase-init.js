@@ -76,6 +76,71 @@ export function resizeImageFile(file, maxWidth = 800, quality = 0.7) {
 }
 
 // =======================================================
+// Directorio de usuarios (colección "profiles")
+//
+// Para invitar a alguien a un chat necesitamos traducir su email
+// a un uid. Antes esto se hacía con una query sobre "users", lo que
+// obligaba a dejar TODA la colección users legible por cualquier
+// usuario autenticado (hábitos, minutos, foto de perfil, el motivo
+// del legacy... todo).
+//
+// Ahora hay una colección aparte, profiles, donde el ID del documento
+// es el SHA-256 del email y el contenido es solo { uid }. Al ser una
+// lectura directa por ID (no una query), las reglas pueden prohibir
+// listar la colección: nadie puede descargarse tus emails.
+// =======================================================
+
+export function normalizeEmail(email) {
+  return (email || "").trim().toLowerCase();
+}
+
+// SHA-256 en hexadecimal minúsculas. crypto.subtle requiere https
+// (o localhost), que es justo donde corre la app en Firebase Hosting.
+export async function emailHash(email) {
+  const bytes = new TextEncoder().encode(normalizeEmail(email));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Deja el documento de profiles al día. Se llama desde requireAuth().
+// Solo escribe la primera vez por (uid, email) gracias al sello en
+// localStorage: antes esto era un write en Firestore en CADA carga de
+// página de CADA usuario, y eso se paga.
+async function syncProfile(user) {
+  const email = normalizeEmail(user.email);
+  if (!email) return;
+
+  const stamp = `focus:profile:${user.uid}:${email}`;
+  try {
+    if (localStorage.getItem(stamp)) return;
+  } catch (_) {
+    // Modo incógnito estricto o storage bloqueado: seguimos y escribimos.
+  }
+
+  const hash = await emailHash(email);
+  await setDoc(doc(db, "users", user.uid), { email }, { merge: true });
+  await setDoc(doc(db, "profiles", hash), { uid: user.uid });
+
+  try {
+    localStorage.setItem(stamp, "1");
+  } catch (_) {}
+}
+
+// Borra la entrada del directorio. Úsalo al eliminar la cuenta,
+// ANTES de deleteUser() (después ya no hay permisos para borrarlo).
+export async function deleteProfileEntry(user) {
+  const email = normalizeEmail(user.email);
+  if (!email) return;
+  const hash = await emailHash(email);
+  await deleteDoc(doc(db, "profiles", hash));
+  try {
+    localStorage.removeItem(`focus:profile:${user.uid}:${email}`);
+  } catch (_) {}
+}
+
+// =======================================================
 // Autenticación
 // =======================================================
 
@@ -97,11 +162,12 @@ export function requireAuth() {
           return;
         }
 
-        // Guardamos el email en su documento para poder encontrarlo al invitarlo a un chat
+        // Registramos al usuario en el directorio para que puedan invitarlo
+        // a un chat por email. No es crítico: si falla, la app sigue.
         try {
-          await setDoc(doc(db, "users", user.uid), { email: (user.email || "").toLowerCase() }, { merge: true });
+          await syncProfile(user);
         } catch (err) {
-          console.error("No se pudo guardar el email del usuario:", err);
+          console.error("No se pudo sincronizar el perfil del usuario:", err);
         }
         resolve(user);
       } else {
@@ -301,14 +367,15 @@ export function listenToUserChats(uid, callback) {
   });
 }
 
-// Busca a un usuario de FOCUS por su email (para invitarlo a un chat)
+// Busca a un usuario de FOCUS por su email (para invitarlo a un chat).
+// Lectura directa por ID contra profiles/{sha256(email)}: una sola
+// operación, sin índices, y sin exponer nada más que el uid.
 export async function findUserByEmail(email) {
-  const colRef = collection(db, "users");
-  const q = query(colRef, where("email", "==", email.trim().toLowerCase()));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  const d = snap.docs[0];
-  return { uid: d.id, ...d.data() };
+  const clean = normalizeEmail(email);
+  if (!clean) return null;
+  const snap = await getDoc(doc(db, "profiles", await emailHash(clean)));
+  if (!snap.exists()) return null;
+  return { uid: snap.data().uid };
 }
 
 export async function inviteToChat(chatId, inviteeUid) {
