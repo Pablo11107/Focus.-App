@@ -7,7 +7,7 @@
 //
 // Sube este número cada vez que cambies archivos estáticos para forzar
 // que los usuarios reciban la versión nueva.
-const CACHE_VERSION = "focus-v5";
+const CACHE_VERSION = "focus-v3";
 
 const APP_SHELL = [
   "index.html",
