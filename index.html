@@ -308,10 +308,17 @@
     .modal-overlay, .modal-overlay-minutes, .modal-overlay-profile {
       position: fixed;
       top: 0; left: 0;
-      width: 100vw; height: 100vh;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;          /* altura VISIBLE en iOS (100vh se cuela tras la barra) */
       display: flex;
       justify-content: center;
       align-items: center;
+      padding: 1rem;
+      box-sizing: border-box;
+      overflow-y: auto;        /* si el modal no cabe, se puede deslizar hasta él */
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;  /* el gesto no arrastra la página de detrás */
       background-color: rgba(0,0,0,0.65);
       backdrop-filter: blur(3px);
       z-index: 999;
@@ -330,6 +337,10 @@
       padding: 2rem 1.75rem 1.75rem;
       border-radius: 20px;
       max-width: 90%;
+      max-height: 88dvh;
+      overflow-y: auto;
+      margin: auto;            /* centrado cuando cabe, desplazable cuando no */
+      flex-shrink: 0;
       color: #fff;
       display: flex;
       flex-direction: column;
@@ -1166,34 +1177,6 @@
       reason: ""
     };
 
-    // ============================================================
-    // BLOQUEO DE SCROLL PARA MODALES (iOS)
-    // Al abrir un modal se congela el fondo en la posición actual;
-    // al cerrar se restaura exactamente donde estaba. Sin esto, en
-    // iOS el focus de un input dentro de un overlay fijo desplaza
-    // el documento hasta arriba y el usuario pierde su sitio.
-    // ============================================================
-    let _lockScrollY = 0;
-    let _locks = 0;
-    function lockScroll() {
-      if (++_locks > 1) return;
-      _lockScrollY = window.scrollY;
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${_lockScrollY}px`;
-      document.body.style.left = "0";
-      document.body.style.right = "0";
-      document.body.style.width = "100%";
-    }
-    function unlockScroll() {
-      if (_locks === 0 || --_locks > 0) return;
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.left = "";
-      document.body.style.right = "";
-      document.body.style.width = "";
-      window.scrollTo(0, _lockScrollY);
-    }
-
     // Helpers de fecha propios (antes venían de weekly-wrap.js).
     // Al ser locales, el registro de datos nunca depende de que ese
     // módulo cargue bien.
@@ -1601,12 +1584,10 @@
         btn.classList.toggle("selected", btn.dataset.value === "Yes");
       });
 
-      lockScroll();
       yesNoModal.classList.add("open");
     }
     function closeYesNo() {
       yesNoModal.classList.remove("open");
-      unlockScroll();
     }
     closeYesNoModal.addEventListener("click", closeYesNo);
 
@@ -1655,13 +1636,11 @@
       minutesInput.dataset.category = catKey;
       minutesChipGroup.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
 
-      lockScroll();
       minutesModal.classList.add("open");
       setTimeout(() => minutesInput.focus({ preventScroll: true }), 200);
     }
     function closeModalMinutes() {
       minutesModal.classList.remove("open");
-      unlockScroll();
     }
     closeMinutesModal.addEventListener("click", closeModalMinutes);
 
@@ -1745,13 +1724,11 @@
       profilePicInput.value  = "";
       delete profilePicInput.dataset.resized;
       setAvatarPreview(profileInfo.profilePic);
-      lockScroll();
       profileModal.classList.add("open");
     });
 
     closeProfileModalBtn.addEventListener("click", () => {
       profileModal.classList.remove("open");
-      unlockScroll();
     });
 
     profilePicInput.addEventListener("change", async () => {
@@ -1777,7 +1754,6 @@
       saveUserDoc(uid, { profileInfo });
       showToast("Profile information saved!");
       profileModal.classList.remove("open");
-      unlockScroll();
     }
 
     /* -- Cuenta y seguridad -- */
@@ -1949,11 +1925,10 @@
       customCatRate.value = "";
       selectedIconKey = null;
       customCatIcons.querySelectorAll(".icon-choice").forEach(c => c.classList.remove("selected"));
-      lockScroll();
       customCatModal.classList.add("open");
       setTimeout(() => customCatName.focus({ preventScroll: true }), 200);
     }
-    closeCustomCat.addEventListener("click", () => { customCatModal.classList.remove("open"); unlockScroll(); });
+    closeCustomCat.addEventListener("click", () => { customCatModal.classList.remove("open"); });
 
     // Construye e inserta la tarjeta de una categoría personalizada
     function renderCustomCard(cat) {
@@ -1987,7 +1962,6 @@
       renderCustomCard(cat);
       recalcAll(cat.key);
       customCatModal.classList.remove("open");
-      unlockScroll();
     });
 
     // Borrar categoría personalizada (con confirmación)
