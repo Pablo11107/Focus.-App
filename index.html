@@ -45,8 +45,11 @@
       animation: pageFadeIn 0.4s ease forwards;
     }
     @keyframes pageFadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
+      /* SIN transform a propósito: cualquier transform en el body
+         rompe el position:fixed de modales y overlays (se anclarían
+         al documento en vez de a la pantalla visible). */
+      from { opacity: 0; }
+      to   { opacity: 1; }
     }
 
     /* Header */
@@ -1988,9 +1991,10 @@
         const href = link.getAttribute('href');
         if (!href || href.startsWith('#')) return;
         e.preventDefault();
-        document.body.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+        // Solo opacidad: un transform en el body rompería el
+        // position:fixed de los modales (ver @keyframes pageFadeIn).
+        document.body.style.transition = 'opacity 0.22s ease';
         document.body.style.opacity = '0';
-        document.body.style.transform = 'translateY(-6px)';
         setTimeout(() => { window.location.href = href; }, 200);
       });
     });
